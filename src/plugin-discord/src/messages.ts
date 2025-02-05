@@ -1,5 +1,6 @@
 import { composeContext, composeRandomUser } from "@elizaos/core";
 import { generateMessageResponse, generateShouldRespond } from "@elizaos/core";
+import { getMemeTheme, generateMemeCaption, memeCategories, createMeme } from "./services/meme.service.ts";
 import {
     Content,
     HandlerCallback,
@@ -65,13 +66,14 @@ export class MessageManager {
     constructor(discordClient: any) {
         this.client = discordClient.client;
         this.discordClient = discordClient;
-        this.runtime = discordClient.runtime;    }
+        this.runtime = discordClient.runtime;
+    }
 
     async handleMessage(message: DiscordMessage) {
         if (
             message.interaction ||
             message.author.id ===
-                this.client.user?.id /* || message.author?.bot*/
+            this.client.user?.id /* || message.author?.bot*/
         ) {
             return;
         }
@@ -106,7 +108,7 @@ export class MessageManager {
         const userName = message.author.username;
         const name = message.author.displayName;
         const channelId = message.channel.id;
-        if(channelId !== this.discordClient.channelId){
+        if (channelId !== this.discordClient.channelId) {
             return;
         }
         const isDirectlyMentioned = this._isMessageForMe(message);
@@ -203,7 +205,7 @@ export class MessageManager {
                 if (
                     hasInterest ||
                     this.interestChannels[message.channelId]?.currentHandler ===
-                        this.client.user?.id
+                    this.client.user?.id
                 ) {
                     delete this.interestChannels[message.channelId];
 
@@ -245,13 +247,7 @@ export class MessageManager {
             const audioAttachments = message.attachments.filter((attachment) =>
                 attachment.contentType?.startsWith("audio/")
             );
-            // if (audioAttachments.size > 0) {
-            //     const processedAudioAttachments =
-            //         await this.attachmentManager.processAttachments(
-            //             audioAttachments
-            //         );
-            //     attachments.push(...processedAudioAttachments);
-            // }
+
 
             const roomId = stringToUuid(channelId + "-" + this.runtime.agentId);
             const userIdUUID = stringToUuid(userId);
@@ -278,10 +274,10 @@ export class MessageManager {
                 url: message.url,
                 inReplyTo: message.reference?.messageId
                     ? stringToUuid(
-                          message.reference.messageId +
-                              "-" +
-                              this.runtime.agentId
-                      )
+                        message.reference.messageId +
+                        "-" +
+                        this.runtime.agentId
+                    )
                     : undefined,
             };
 
@@ -405,6 +401,30 @@ export class MessageManager {
                     return;
                 }
 
+                // Step 1: Get the meme theme from the message
+                const theme = await getMemeTheme(message.content);
+                if (!theme || !memeCategories[theme]) {
+                    elizaLogger.log(`No meme theme detected for message: "${message.content}"`);
+                    return;
+                }
+
+                const memeCaption = await generateMemeCaption(message.content, message.author.username, context);
+                if (!memeCaption) {
+                    elizaLogger.log(`Failed to generate a meme caption for: "${message.content}"`);
+                    return;
+                }
+
+                // Step 2: Select a random meme template based on the detected theme
+                const templateIds = memeCategories[theme];
+                const selectedTemplateId = templateIds[Math.floor(Math.random() * templateIds.length)];
+
+                const memeUrl = await createMeme(selectedTemplateId, memeCaption.topText, memeCaption.bottomText);
+                if (memeUrl) {
+                    elizaLogger.log(`Generated meme: ${memeUrl}`);
+                } else {
+                    elizaLogger.error(`Failed to generate meme for message: "${message.content}"`);
+                }
+
                 const callback: HandlerCallback = async (
                     content: Content,
                     files: any[]
@@ -421,6 +441,14 @@ export class MessageManager {
                             message.id,
                             files
                         );
+                        if (memeUrl) {
+                            await sendMessageInChunks(
+                                message.channel as TextChannel,
+                                memeUrl,
+                                message.id,
+                                []
+                            );
+                        }
 
                         const memories: Memory[] = [];
                         for (const m of messages) {
@@ -892,8 +920,8 @@ export class MessageManager {
                 const randomDelay =
                     Math.floor(
                         Math.random() *
-                            (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
-                                TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN)
+                        (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
+                            TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN)
                     ) + TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN; // 1-3 second random delay
                 await new Promise((resolve) =>
                     setTimeout(resolve, randomDelay)
@@ -1019,7 +1047,7 @@ export class MessageManager {
 
         if (
             message.content.length <
-                MESSAGE_LENGTH_THRESHOLDS.IGNORE_RESPONSE &&
+            MESSAGE_LENGTH_THRESHOLDS.IGNORE_RESPONSE &&
             IGNORE_RESPONSE_WORDS.some((word) =>
                 message.content.toLowerCase().includes(word)
             )
@@ -1087,8 +1115,8 @@ export class MessageManager {
                         const leaderResponded = recentMessages.some(
                             (m) =>
                                 m.userId ===
-                                    this.runtime.character.clientConfig?.discord
-                                        ?.teamLeaderId &&
+                                this.runtime.character.clientConfig?.discord
+                                    ?.teamLeaderId &&
                                 Date.now() - channelState.lastMessageSent < 3000
                         );
 
@@ -1114,8 +1142,8 @@ export class MessageManager {
                     const randomDelay =
                         Math.floor(
                             Math.random() *
-                                (TIMING_CONSTANTS.LEADER_DELAY_MAX -
-                                    TIMING_CONSTANTS.LEADER_DELAY_MIN)
+                            (TIMING_CONSTANTS.LEADER_DELAY_MAX -
+                                TIMING_CONSTANTS.LEADER_DELAY_MIN)
                         ) + TIMING_CONSTANTS.LEADER_DELAY_MIN; // 2-4 second random delay
                     await new Promise((resolve) =>
                         setTimeout(resolve, randomDelay)
