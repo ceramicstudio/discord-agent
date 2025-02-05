@@ -70,8 +70,13 @@ export async function generateMemeCaption(message: string, username: string, con
 
       messages: [{
         role: "user", content: `Generate a funny meme caption for the message: "${message}". 
-               If the caption integrates a response to the user, include the regular username instead of the user's id.
-               This is the username: ${username}.
+               For your context, the message included will contain a user's ID. This is because
+               you will be generating a meme based on a message sent by a user. This is their username: ${username}.
+               In most cases it will not make sense to integrate the username into the caption, and instead 
+               create a funny and relevant caption in response to the message itself without addressing the user.
+               In about 10% cases, you can choose to integrate the username into the caption. Only integrate 
+               this type of direct response to the user in the caption if the user's message is snarky, sarcastic, or otherwise
+               joking around. In the majority of other cases where the user is seeking information or help, do not integrate the username.
                Only integrate the username if it makes sense in the context of the caption. Most memes and captions
                won't make sense with a username integrated, so only do it if it makes sense.
                The most important thing is that the caption is funny and relevant to the message.
@@ -82,6 +87,14 @@ export async function generateMemeCaption(message: string, username: string, con
                {"topText": "<top text>", "bottomText": "<bottom text>"}
                Example:
                {"topText": "Big Data", "bottomText": "Big Data Everywhere"}
+               {"topText": "Debugging in production", "bottomText": "It's like playing Jenga on a rollercoaster"}
+               {"topText": "JavaScript developers", "bottomText": "Undefined is not a function... again"}
+               {"topText": "Me writing code at 3AM", "bottomText": "Works perfectly. No idea how."}
+               {"topText": "Stack Overflow down", "bottomText": "Guess I'll learn programming today"}
+               {"topText": "When ChatGPT suggests a fix", "bottomText": "And it actually works 😳"}
+               {"topText": "When you finally fix the bug", "bottomText": "But it breaks everything else"}
+               {"topText": "Me: I should really fix this bug", "bottomText": "Also me: *adds more bugs*"}
+               {"topText": "It's fine...", "bottomText": "Everything's fine."}
                Ensure it's short, humorous, and meme-appropriate.`,
       }],
       max_tokens: 50,
