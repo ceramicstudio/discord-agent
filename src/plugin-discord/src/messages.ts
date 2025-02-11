@@ -1,6 +1,6 @@
 import { composeContext, composeRandomUser } from "@elizaos/core";
 import { generateMessageResponse, generateShouldRespond } from "@elizaos/core";
-import { getMemeTheme, generateMemeCaption, memeCategories, createMeme } from "./services/meme.service.ts";
+import {generateMemeActionHandler} from "./actions/generate-meme.ts";  
 import {
     Content,
     HandlerCallback,
@@ -401,29 +401,7 @@ export class MessageManager {
                     return;
                 }
 
-                // Step 1: Get the meme theme from the message
-                const theme = await getMemeTheme(message.content);
-                if (!theme || !memeCategories[theme]) {
-                    elizaLogger.log(`No meme theme detected for message: "${message.content}"`);
-                    return;
-                }
-
-                const memeCaption = await generateMemeCaption(message.content, message.author.username, context);
-                if (!memeCaption) {
-                    elizaLogger.log(`Failed to generate a meme caption for: "${message.content}"`);
-                    return;
-                }
-
-                // Step 2: Select a random meme template based on the detected theme
-                const templateIds = memeCategories[theme];
-                const selectedTemplateId = templateIds[Math.floor(Math.random() * templateIds.length)];
-
-                const memeUrl = await createMeme(selectedTemplateId, memeCaption.topText, memeCaption.bottomText);
-                if (memeUrl) {
-                    elizaLogger.log(`Generated meme: ${memeUrl}`);
-                } else {
-                    elizaLogger.error(`Failed to generate meme for message: "${message.content}"`);
-                }
+                const meme = await generateMemeActionHandler(this.runtime, userMessage, state)
 
                 const callback: HandlerCallback = async (
                     content: Content,
@@ -441,10 +419,10 @@ export class MessageManager {
                             message.id,
                             files
                         );
-                        if (memeUrl) {
+                        if (meme.url) {
                             await sendMessageInChunks(
                                 message.channel as TextChannel,
-                                memeUrl,
+                                meme.url,
                                 message.id,
                                 []
                             );
