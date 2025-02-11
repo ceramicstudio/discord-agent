@@ -737,7 +737,7 @@ export class MessageManager {
             const FIVE_MINUTES = 5 * 60 * 1000;
             if (timeSinceLastMessage > FIVE_MINUTES) {
                 // Get the last few messages to check context
-                const recentMessages = await channel.messages.fetch({ limit: 7 });
+                const recentMessages = await channel.messages.fetch({ limit: 30 });
                 
 
                 const FIVE_MINUTES_MS = 5 * 60 * 1000;
