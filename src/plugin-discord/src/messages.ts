@@ -549,7 +549,7 @@ export class MessageManager {
             const FIVE_MINUTES = 5 * 60 * 1000;
             if (timeSinceLastMessage > FIVE_MINUTES) {
                 // Get the last few messages to check context
-                const recentMessages = await channel.messages.fetch({ limit: 7 });
+                const recentMessages = await channel.messages.fetch({ limit: 30 });
                 
                 // Check for the specific bot's recent message
                 const SPECIFIC_BOT_ID = '1332464810780004422';
