@@ -15,6 +15,7 @@ import {
     UUID,
 } from "@elizaos/core";
 import { stringToUuid, getEmbeddingZeroVector } from "@elizaos/core";
+import {generateMemeActionHandler} from "./actions/generate-meme.ts";   
 import {
     ChannelType,
     Client,
@@ -408,6 +409,9 @@ export class MessageManager {
                 if (!responseContent.text) {
                     return;
                 }
+                
+                const meme = await generateMemeActionHandler(this.runtime, userMessage, state)
+               
 
                 const callback: HandlerCallback = async (
                     content: Content,
@@ -427,6 +431,15 @@ export class MessageManager {
                             message.id,
                             files
                         );
+
+                        if (meme.url) {
+                            await sendMessageInChunks(
+                                message.channel as TextChannel,
+                                meme.url,
+                                message.id,
+                                []
+                            );
+                        }
 
                         if (attachment) {
                             await sendMessageInChunks(
