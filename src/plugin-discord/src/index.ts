@@ -25,6 +25,7 @@ import { MessageManager } from "./messages.ts";
 import channelStateProvider from "./providers/channelState.ts";
 import {embeddingProvider} from "./providers/provider.ts";
 import voiceStateProvider from "./providers/voiceState.ts";
+import {generateMemeAction} from "./actions/generate-meme.ts";
 import { PermissionsBitField } from "discord.js";
 
 export class DiscordClient extends EventEmitter {
@@ -76,10 +77,12 @@ export class DiscordClient extends EventEmitter {
     this.runtime.registerAction(summarize);
     this.runtime.registerAction(chat_with_attachments);
     this.runtime.registerAction(transcribe_media);
+    this.runtime.registerAction(generateMemeAction);
 
     this.runtime.providers.push(channelStateProvider);
     this.runtime.providers.push(voiceStateProvider);
     this.runtime.providers.push(embeddingProvider);
+    
   }
 
   private setupEventListeners() {

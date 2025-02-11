@@ -1,4 +1,4 @@
-import { composeContext, composeRandomUser } from "@elizaos/core";
+import { composeContext, composeRandomUser, generateText } from "@elizaos/core";
 import { generateMessageResponse, generateShouldRespond } from "@elizaos/core";
 import {
     Content,
@@ -65,13 +65,17 @@ export class MessageManager {
     constructor(discordClient: any) {
         this.client = discordClient.client;
         this.discordClient = discordClient;
-        this.runtime = discordClient.runtime;    }
+        this.runtime = discordClient.runtime;
+        setInterval(() => {
+            this.sendScheduledMessage();
+        }, 300000);
+    }
 
     async handleMessage(message: DiscordMessage) {
         if (
             message.interaction ||
             message.author.id ===
-                this.client.user?.id /* || message.author?.bot*/
+            this.client.user?.id /* || message.author?.bot*/
         ) {
             return;
         }
@@ -106,7 +110,7 @@ export class MessageManager {
         const userName = message.author.username;
         const name = message.author.displayName;
         const channelId = message.channel.id;
-        if(channelId !== this.discordClient.channelId){
+        if (channelId !== this.discordClient.channelId) {
             return;
         }
         const isDirectlyMentioned = this._isMessageForMe(message);
@@ -203,7 +207,7 @@ export class MessageManager {
                 if (
                     hasInterest ||
                     this.interestChannels[message.channelId]?.currentHandler ===
-                        this.client.user?.id
+                    this.client.user?.id
                 ) {
                     delete this.interestChannels[message.channelId];
 
@@ -278,10 +282,10 @@ export class MessageManager {
                 url: message.url,
                 inReplyTo: message.reference?.messageId
                     ? stringToUuid(
-                          message.reference.messageId +
-                              "-" +
-                              this.runtime.agentId
-                      )
+                        message.reference.messageId +
+                        "-" +
+                        this.runtime.agentId
+                    )
                     : undefined,
             };
 
@@ -415,12 +419,23 @@ export class MessageManager {
                                 message.id + "-" + this.runtime.agentId
                             );
                         }
+                        // find if message.attachments has an object with a "url" key
+                        const attachment = message.attachments.find((a) => a.url);
                         const messages = await sendMessageInChunks(
                             message.channel as TextChannel,
                             content.text,
                             message.id,
                             files
                         );
+
+                        if (attachment) {
+                            await sendMessageInChunks(
+                                message.channel as TextChannel,
+                                attachment.url,
+                                message.id,
+                                []
+                            );
+                        }
 
                         const memories: Memory[] = [];
                         for (const m of messages) {
@@ -675,6 +690,111 @@ export class MessageManager {
         );
     }
 
+    private async sendScheduledMessage() {
+        try {
+            const channelId = this.discordClient.channelId;
+            const userId = "001Agent"; // The user to tag
+
+            if (!channelId) {
+                elizaLogger.warn("No channel ID specified for scheduled message.");
+                return;
+            }
+
+            // Fetch the channel
+            const channel = await this.client.channels.fetch(channelId);
+            if (!channel || !(channel instanceof TextChannel)) {
+                elizaLogger.warn(`Invalid channel or channel not found: ${channelId}`);
+                return;
+            }
+
+            // Initialize channel state if it doesn't exist
+            if (!this.interestChannels[channelId]) {
+                this.interestChannels[channelId] = {
+                    currentHandler: undefined,
+                    lastMessageSent: 0,
+                    messages: []
+                };
+            }
+
+            const channelState = this.interestChannels[channelId];
+            const timeSinceLastMessage = Date.now() - (channelState?.lastMessageSent || 0);
+
+            // Check if enough time has passed (5 minutes)
+            const FIVE_MINUTES = 5 * 60 * 1000;
+            if (timeSinceLastMessage > FIVE_MINUTES) {
+                // Get the last few messages to check context
+                const recentMessages = await channel.messages.fetch({ limit: 5 });
+                const lastMessage = recentMessages.first();
+
+                // Check the last 5 messages for the specific bot ID
+                const SPECIFIC_BOT_ID = '1332464810780004422';
+                const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+                const recentBotMessage = Array.from(recentMessages.values())
+                    .find(msg =>
+                        msg.author.id === SPECIFIC_BOT_ID &&
+                        (Date.now() - msg.createdTimestamp) < FIVE_MINUTES_MS
+                    );
+
+                if (recentBotMessage) {
+                    elizaLogger.info("Found recent message from specified bot, skipping scheduled message");
+                    return;
+                }
+
+                const scheduledContext = `
+                 # Instructions
+                 Create a bit of a random message to keep the conversation going. Somewhere in your message,
+                 you will need to tag a user using this exact string: <@1332464810780004422>
+                    Make it subtle, and don't make it obvious that you're trying to get them to respond.
+                    `;
+                
+
+                const randomMessage = await generateText({
+                    runtime: this.runtime,
+                    context: scheduledContext,
+                    modelClass: ModelClass.LARGE
+                })
+                elizaLogger.info(`Generated random message: ${randomMessage}`);
+
+                const messages = await sendMessageInChunks(
+                    channel,
+                    randomMessage,
+                    undefined,
+                    []
+                );
+
+                // Update the channel state
+                if (messages && messages.length > 0) {
+                    channelState.lastMessageSent = Date.now();
+                    channelState.currentHandler = this.client.user?.id;
+
+                    // Add the sent message to the channel's message history
+                    messages.forEach(msg => {
+                        channelState.messages.push({
+                            userId: this.runtime.agentId,
+                            userName: this.client.user?.username || "Bot",
+                            content: {
+                                text: randomMessage,
+                                attachments: []
+                            }
+                        });
+                    });
+
+                    // Trim message history if needed
+                    if (channelState.messages.length > MESSAGE_CONSTANTS.MAX_MESSAGES) {
+                        channelState.messages = channelState.messages.slice(-MESSAGE_CONSTANTS.MAX_MESSAGES);
+                    }
+
+                    elizaLogger.info(`Scheduled message sent successfully to ${channelId}`);
+                }
+            } else {
+                elizaLogger.debug(`Not enough time has passed since last message (${timeSinceLastMessage}ms)`);
+            }
+        } catch (error) {
+            elizaLogger.error("Error sending scheduled message:", error);
+        }
+    }
+
     private _isRelevantToTeamMember(
         content: string,
         channelId: string,
@@ -892,8 +1012,8 @@ export class MessageManager {
                 const randomDelay =
                     Math.floor(
                         Math.random() *
-                            (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
-                                TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN)
+                        (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
+                            TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN)
                     ) + TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN; // 1-3 second random delay
                 await new Promise((resolve) =>
                     setTimeout(resolve, randomDelay)
@@ -1019,7 +1139,7 @@ export class MessageManager {
 
         if (
             message.content.length <
-                MESSAGE_LENGTH_THRESHOLDS.IGNORE_RESPONSE &&
+            MESSAGE_LENGTH_THRESHOLDS.IGNORE_RESPONSE &&
             IGNORE_RESPONSE_WORDS.some((word) =>
                 message.content.toLowerCase().includes(word)
             )
@@ -1087,8 +1207,8 @@ export class MessageManager {
                         const leaderResponded = recentMessages.some(
                             (m) =>
                                 m.userId ===
-                                    this.runtime.character.clientConfig?.discord
-                                        ?.teamLeaderId &&
+                                this.runtime.character.clientConfig?.discord
+                                    ?.teamLeaderId &&
                                 Date.now() - channelState.lastMessageSent < 3000
                         );
 
@@ -1114,8 +1234,8 @@ export class MessageManager {
                     const randomDelay =
                         Math.floor(
                             Math.random() *
-                                (TIMING_CONSTANTS.LEADER_DELAY_MAX -
-                                    TIMING_CONSTANTS.LEADER_DELAY_MIN)
+                            (TIMING_CONSTANTS.LEADER_DELAY_MAX -
+                                TIMING_CONSTANTS.LEADER_DELAY_MIN)
                         ) + TIMING_CONSTANTS.LEADER_DELAY_MIN; // 2-4 second random delay
                     await new Promise((resolve) =>
                         setTimeout(resolve, randomDelay)
