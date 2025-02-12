@@ -19,7 +19,9 @@ import {generateMemeActionHandler} from "./actions/generate-meme.ts";
 import {
     ChannelType,
     Client,
+    Collection,
     Message as DiscordMessage,
+    Message,
     TextChannel,
 } from "discord.js";
 import { elizaLogger } from "@elizaos/core";
@@ -69,7 +71,7 @@ export class MessageManager {
         this.runtime = discordClient.runtime;
         setInterval(() => {
             this.sendScheduledMessage();
-        }, 300000);
+        }, 3600000);
     }
 
     async handleMessage(message: DiscordMessage) {
@@ -706,20 +708,19 @@ export class MessageManager {
     private async sendScheduledMessage() {
         try {
             const channelId = this.discordClient.channelId;
-            const userId = "001Agent"; // The user to tag
-
+    
             if (!channelId) {
                 elizaLogger.warn("No channel ID specified for scheduled message.");
                 return;
             }
-
+    
             // Fetch the channel
             const channel = await this.client.channels.fetch(channelId);
             if (!channel || !(channel instanceof TextChannel)) {
                 elizaLogger.warn(`Invalid channel or channel not found: ${channelId}`);
                 return;
             }
-
+    
             // Initialize channel state if it doesn't exist
             if (!this.interestChannels[channelId]) {
                 this.interestChannels[channelId] = {
@@ -728,59 +729,70 @@ export class MessageManager {
                     messages: []
                 };
             }
-
+    
             const channelState = this.interestChannels[channelId];
             const timeSinceLastMessage = Date.now() - (channelState?.lastMessageSent || 0);
-
+    
             // Check if enough time has passed (5 minutes)
             const FIVE_MINUTES = 5 * 60 * 1000;
             if (timeSinceLastMessage > FIVE_MINUTES) {
                 // Get the last few messages to check context
-                const recentMessages = await channel.messages.fetch({ limit: 5 });
-                const lastMessage = recentMessages.first();
+                const recentMessages = await channel.messages.fetch({ limit: 30 });
+                
 
-                // Check the last 5 messages for the specific bot ID
-                const SPECIFIC_BOT_ID = '1332464810780004422';
                 const FIVE_MINUTES_MS = 5 * 60 * 1000;
-
+    
                 const recentBotMessage = Array.from(recentMessages.values())
                     .find(msg =>
-                        msg.author.id === SPECIFIC_BOT_ID &&
                         (Date.now() - msg.createdTimestamp) < FIVE_MINUTES_MS
                     );
-
+    
                 if (recentBotMessage) {
                     elizaLogger.info("Found recent message from specified bot, skipping scheduled message");
                     return;
                 }
-
-                const scheduledContext = `
-                 # Instructions
-                 Create a bit of a random message to keep the conversation going. Somewhere in your message,
-                 you will need to tag a user using this exact string: <@1332464810780004422>
-                    Make it subtle, and don't make it obvious that you're trying to get them to respond.
-                    `;
+    
+                // Get unique user IDs from recent messages, excluding bots and the specific bot
+                const uniqueUsers = Array.from(recentMessages.values())
+                    .filter(msg => 
+                        !msg.author.bot && // Exclude bots
+                        msg.author.id !== this.client.user?.id 
+                    )
+                    .map(msg => msg.author.id);
                 
-
+                // Get unique IDs only
+                const uniqueUserIds = [...new Set(uniqueUsers)];
+    
+                if (uniqueUserIds.length === 0) {
+                    elizaLogger.info("No valid users found in recent messages");
+                    return;
+                }
+    
+                // Select random user from the unique users
+                const randomUserId = uniqueUserIds[Math.floor(Math.random() * uniqueUserIds.length)];
+    
+                // Use our new context generator for a more natural, context-aware message
+                const scheduledContext = await this.generateScheduledContext(channel, recentMessages, randomUserId);
+    
                 const randomMessage = await generateText({
                     runtime: this.runtime,
                     context: scheduledContext,
                     modelClass: ModelClass.LARGE
-                })
-                elizaLogger.info(`Generated random message: ${randomMessage}`);
-
+                });
+                elizaLogger.info(`Generated random message for user ${randomUserId}: ${randomMessage}`);
+    
                 const messages = await sendMessageInChunks(
                     channel,
                     randomMessage,
                     undefined,
                     []
                 );
-
+    
                 // Update the channel state
                 if (messages && messages.length > 0) {
                     channelState.lastMessageSent = Date.now();
                     channelState.currentHandler = this.client.user?.id;
-
+    
                     // Add the sent message to the channel's message history
                     messages.forEach(msg => {
                         channelState.messages.push({
@@ -792,12 +804,12 @@ export class MessageManager {
                             }
                         });
                     });
-
+    
                     // Trim message history if needed
                     if (channelState.messages.length > MESSAGE_CONSTANTS.MAX_MESSAGES) {
                         channelState.messages = channelState.messages.slice(-MESSAGE_CONSTANTS.MAX_MESSAGES);
                     }
-
+    
                     elizaLogger.info(`Scheduled message sent successfully to ${channelId}`);
                 }
             } else {
@@ -805,6 +817,109 @@ export class MessageManager {
             }
         } catch (error) {
             elizaLogger.error("Error sending scheduled message:", error);
+        }
+    }
+
+    private async generateScheduledContext(channel: TextChannel, recentMessages: Collection<string, Message>, randomUserId: string): Promise<string> {
+        try {
+            // Get the channel's recent message history
+            const recentMessageContents = Array.from(recentMessages.values())
+                .map(msg => ({
+                    content: msg.content,
+                    author: msg.author.username,
+                    timestamp: msg.createdTimestamp
+                }))
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, 5);
+    
+            // Get bot's recent memories for this channel
+            const roomId = stringToUuid(channel.id + "-" + this.runtime.agentId);
+            const recentMemories = await this.runtime.messageManager.getMemories({
+                roomId: roomId,
+                unique: false,
+                count: 5
+            });
+    
+            // Extract conversation topics
+            const allText = [...recentMessageContents.map(m => m.content), 
+                            ...recentMemories?.map(m => m.content.text) || []].join(" ");
+    
+            const message = {
+                content: {
+                    text: allText,
+                    attachments: []
+                },
+                userId: this.runtime.agentId,
+                agentId: this.runtime.agentId,
+                roomId
+            };
+    
+            // Create state with additional context
+            const state = await this.runtime.composeState(
+                message,
+                {
+                    discordClient: this.client,
+                    discordChannel: channel,
+                    recentMessages: recentMessageContents,
+                    memories: recentMemories,
+                    targetUserId: randomUserId,
+                    isScheduledMessage: true
+                }
+            );
+    
+            // Use the template system to compose context
+            const scheduledTemplate = `
+    # Channel Context
+    {{channelInfo}}
+    
+    # Recent Messages
+    {{recentMessages}}
+    
+    # Character Context
+    You are {{characterName}}, with the following background:
+    {{characterBio}}
+    
+    # Instructions
+    Based on the conversation history and your character background:
+    1. Create a natural, context-appropriate message that:
+       - Continues the ongoing conversation
+       - References recent discussion points when relevant
+       - Maintains your established personality and style
+       - Naturally includes a mention of <@${randomUserId}>
+       - Feels genuine and spontaneous
+    2. Stay true to your character's voice and knowledge
+    3. Engage with the existing conversation topics
+    4. Avoid any indication this is a scheduled or automated message
+    
+    Respond in a way that genuinely adds to the conversation while staying in character.`;
+    
+            const context = composeContext({
+                state,
+                template: scheduledTemplate
+            });
+    
+            return context;
+    
+        } catch (error) {
+            elizaLogger.error("Error generating scheduled context:", error);
+            // Fallback to a simpler context using default template
+            const fallbackState = await this.runtime.composeState(
+                {
+                    content: { text: "", attachments: [] },
+                    userId: this.runtime.agentId,
+                    agentId: this.runtime.agentId,
+                    roomId: stringToUuid(channel.id + "-" + this.runtime.agentId)
+                },
+                {
+                    targetUserId: randomUserId,
+                    isScheduledMessage: true
+                }
+            );
+    
+            return composeContext({
+                state: fallbackState,
+                template: discordMessageHandlerTemplate
+            });
         }
     }
 

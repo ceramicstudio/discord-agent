@@ -3,7 +3,7 @@ dist/
 node_modules/
 
 # Exclude environment and IDE files
-.env
+.env*
 .idea/
 
 # Exclude database
@@ -15,3 +15,4 @@ db.sqlite
 # Or if you want to keep all source TypeScript files but exclude compiled ones:
 /**/*.js
 /**/*.js.map
+
