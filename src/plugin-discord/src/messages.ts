@@ -69,9 +69,9 @@ export class MessageManager {
         this.client = discordClient.client;
         this.discordClient = discordClient;
         this.runtime = discordClient.runtime;
-        setInterval(() => {
-            this.sendScheduledMessage();
-        }, 3600000);
+        // setInterval(() => {
+        //     this.sendScheduledMessage();
+        // }, 3600000);
     }
 
     async handleMessage(message: DiscordMessage) {
