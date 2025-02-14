@@ -14,6 +14,17 @@ import {
 
 const imgflipApiBaseUrl = "https://api.imgflip.com";
 
+function sanitizeText(text: string): string {
+    return text
+        .replace(/[^\x20-\x7E]/g, '') // Only allow basic ASCII printable characters
+        .replace(/[<>]/g, '') // Remove angle brackets
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/\\n/g, ' ') // Replace literal \n with space
+        .replace(/\\t/g, ' ') // Replace literal \t with space
+        .replace(/[^\w\s!?.,-]/g, '') // Only allow basic punctuation
+        .trim();
+}
+
 interface ImgflipTemplate {
     id: string;
     name: string;
@@ -42,15 +53,17 @@ interface ImgflipCaptionResponse {
 
 async function findImgflipTemplate(
     runtime: IAgentRuntime,
-    message: string
+    message: string,
+    username?: string
 ): Promise<string> {
     const context = `
-# Task: Find the most CHAOTIC and UNEXPECTED imgflip.com template for a meme, based on the user's message.
-The message is:
-${message}
+# Task: Find the most CHAOTIC and UNEXPECTED imgflip.com template for a meme.
+The message${username ? ` from ${username}` : ''} is:
+${sanitizeText(message)}
 
 # Instructions:
 - Be absolutely WILD and UNPREDICTABLE
+- Go wild! 
 - ACTIVELY AVOID making sense - the more absurd the connection, the better
 - Choose templates that seem completely unrelated to create maximum cognitive dissonance
 - Think of the most cursed combinations possible
@@ -65,16 +78,15 @@ Only respond with the template name, do not include any other text.`;
         modelClass: ModelClass.MEDIUM,
     });
 
-    return response;
+    return sanitizeText(response);
 }
 
 async function getImgflipTemplate(template: string): Promise<ImgflipTemplate> {
     try {
-        // Use the search_memes endpoint to find the template
         const formData = new URLSearchParams({
             username: process.env.IMGFLIP_USERNAME!,
             password: process.env.IMGFLIP_PASSWORD!,
-            query: template,
+            query: sanitizeText(template),
         });
 
         elizaLogger.info(`Searching for meme template: ${template}`);
@@ -113,35 +125,29 @@ async function getImgflipTemplate(template: string): Promise<ImgflipTemplate> {
                 const memeLower = meme.name.toLowerCase();
                 return memeLower.includes(templateLower) || 
                        templateLower.includes(memeLower) ||
-                       // Add loose matching based on individual words
                        template.split(' ').some(word => 
                            memeLower.includes(word.toLowerCase())
                        );
             });
 
             if (matches.length > 0) {
-                // Return a random match with preference for unusual templates
                 const randomIndex = Math.floor(Math.pow(Math.random(), 2) * matches.length);
                 const selectedMatch = matches[randomIndex];
                 elizaLogger.info(`Found ${matches.length} matching templates, chaotically selected: ${selectedMatch.name}`);
                 return selectedMatch;
             }
 
-            // If no matches, return a random template with bias towards less used ones
             const randomIndex = Math.floor(Math.pow(Math.random(), 2) * allMemes.data.memes.length);
             const randomTemplate = allMemes.data.memes[randomIndex];
             elizaLogger.info(`No matches found, chaotically selected template: ${randomTemplate.name}`);
             return randomTemplate;
         }
 
-        // Modify the selection logic for search results
         const allResults = result.data.memes;
-        // Sometimes pick from less relevant results for chaos
         const selectionPool = Math.random() < 0.3 ? 
             allResults : 
             allResults.slice(0, Math.min(5, allResults.length));
         
-        // Use non-linear randomness to favor unusual choices
         const randomIndex = Math.floor(Math.pow(Math.random(), 2) * selectionPool.length);
         const selectedTemplate = selectionPool[randomIndex];
         
@@ -159,23 +165,23 @@ async function generateMemeCaptions(
     message: string,
     state: State,
     imgflipTemplate: string,
-    captionsCount: number
+    captionsCount: number,
+    username?: string
 ): Promise<string[]> {
     const template = `
 # About Arony:
 {{bio}}
 {{lore}}
 
-# Task: Generate ABSOLUTELY CHAOTIC captions for a meme, based on a imgflip.com template and the user's message.
-The template is: **${imgflipTemplate}**
-The message is:
-${message}
+# Task: Generate ABSOLUTELY CHAOTIC captions for a meme.
+The template is: **${sanitizeText(imgflipTemplate)}**
+The message${username ? ` from ${username}` : ''} is:
+${sanitizeText(message)}
 Generate **${captionsCount}** captions for the meme.
 
 # Instructions:
-- Do NOT tag the user who wrote the message - just make the captions general as if the user doesn't exist
-- Don't hold back!
 - Be as UNHINGED and RANDOM as possible
+- You do not have to address the user in the captions - only focus on the meme, and only tag them if it fits the meme. In most cases it won't make sense to do so
 - Mix different styles, tones, and references chaotically
 - Include unexpected pop culture references
 - Use DRAMATIC capitalization and punctuation!!!
@@ -184,6 +190,7 @@ Generate **${captionsCount}** captions for the meme.
 - Mix formal and informal language unpredictably
 - Add surreal or absurdist elements
 - Reference meme culture in unexpected ways
+- Use only standard readable characters (no emojis or special characters)
 Only respond with the captions - one per line, do not include any other text.`;
 
     const context = await composeContext({
@@ -191,31 +198,28 @@ Only respond with the captions - one per line, do not include any other text.`;
         template,
     });
 
-    elizaLogger.debug("generateMemeCaptions context: ", context);
-
     const response = await generateText({
         runtime,
         context,
         modelClass: ModelClass.MEDIUM,
     });
 
-    return response.split("\n");
+    return response.split("\n").map(caption => sanitizeText(caption));
 }
 
 async function genereateMeme(
     imgflipTemplate: ImgflipTemplate,
     captions: string[]
 ): Promise<string> {
-    // Create form data with template ID and credentials
     const formData = new URLSearchParams({
         template_id: imgflipTemplate.id,
         username: process.env.IMGFLIP_USERNAME!,
         password: process.env.IMGFLIP_PASSWORD!,
     });
 
-    // Add each caption as text0, text1, etc.
     captions.forEach((text, index) => {
-        formData.append(`boxes[${index}][text]`, text);
+        const sanitizedText = sanitizeText(text);
+        formData.append(`boxes[${index}][text]`, sanitizedText);
         formData.append(`boxes[${index}][color]`, "#FFFFFF");
         formData.append(`boxes[${index}][outline_color]`, "#000000");
     });
@@ -241,7 +245,8 @@ async function generateMemeText(
     runtime: IAgentRuntime,
     state: State,
     imgflipTemplate: string,
-    captions: string[]
+    captions: string[],
+    username?: string
 ): Promise<string> {
     const template = `
 # About Arony:
@@ -249,18 +254,20 @@ async function generateMemeText(
 {{lore}}
 
 # Task: Generate an ABSOLUTELY UNHINGED comment for the meme in the character's voice.
-The imgflip template used for the meme is: **${imgflipTemplate}**
+The imgflip template used for the meme is: **${sanitizeText(imgflipTemplate)}**
+${username ? `The message is from ${username}` : ''}
 The captions used for the meme are:
-${captions.join("\n")}
+${captions.map(caption => sanitizeText(caption)).join("\n")}
 
 # Instructions:
 - Be CHAOTIC and RANDOM
 - Mix multiple tones and styles
-- Use unexpected emojis and punctuation
+- Use basic punctuation for emphasis
 - Break the fourth wall
 - Reference meme culture in bizarre ways
 - Create maximum cognitive dissonance
 - Be as unpredictable as possible
+- Use only standard readable characters (no emojis or special characters)
 Do not include hashtags.
 Only respond with the text - do not include any other text.`;
 
@@ -269,15 +276,13 @@ Only respond with the text - do not include any other text.`;
         template,
     });
 
-    elizaLogger.debug("generateMemeText context: ", context);
-
     const response = await generateText({
         runtime,
         context,
         modelClass: ModelClass.SMALL,
     });
 
-    return response;
+    return sanitizeText(response);
 }
 
 export interface Meme {
@@ -288,24 +293,18 @@ export interface Meme {
 export async function generateMemeActionHandler(
     runtime: IAgentRuntime,
     message: Memory,
-    state: State
+    state: State,
+    username?: string
 ): Promise<Meme> {
-    // STEPS
-    // 1. Generate the best imgflip template for the meme based on the message -> LLM call
-    // 2. Get the template's captions number from imgflip -> imgflip API call
-    // 2. Generate the captions for the meme, based on the template (**also consider the agent character**) -> LLM call
-    // 3. Generate the meme -> imgflip API call
-    // 4. Generate a text for the meme (**also consider the agent character**) -> LLM call
-    // 5. Return the meme url and the text
-
-    const template = await findImgflipTemplate(runtime, message.content.text);
+    const template = await findImgflipTemplate(runtime, message.content.text, username);
     const imgflipTemplate = await getImgflipTemplate(template);
     const captions = await generateMemeCaptions(
         runtime,
         message.content.text,
         state,
         template,
-        imgflipTemplate.box_count
+        imgflipTemplate.box_count,
+        username
     );
 
     const url = await genereateMeme(imgflipTemplate, captions);
@@ -313,12 +312,13 @@ export async function generateMemeActionHandler(
         runtime,
         state,
         imgflipTemplate.name,
-        captions
+        captions,
+        username
     );
 
     return {
         url,
-        text,
+        text: sanitizeText(text),
     };
 }
 
@@ -336,9 +336,7 @@ export const generateMemeAction: Action = {
         options: any,
         callback: HandlerCallback
     ) => {
-        // Increase the randomness of meme generation
         const chaosWords = /meme|funny|hilarious|lol|lmao|🤣|😂|cursed|chaos|random|wild|unhinged/i;
-        // Maintain original 0.4 probability but add additional triggers
         const baseProb = 0.4;
         const chaosBonus = chaosWords.test(message.content.text) ? 0.2 : 0;
         const shouldMakeMeme = Math.random() < (baseProb + chaosBonus) || /meme|funny|hilarious|lol|lmao|🤣|😂/i.test(message.content.text);
@@ -353,7 +351,7 @@ export const generateMemeAction: Action = {
             ...message,
             userId: message.agentId,
             content: {
-                text: `${meme.text}\n${meme.url}`,  // Include both text and URL to maintain compatibility
+                text: `${sanitizeText(meme.text)}\n${meme.url}`,
                 attachments: [
                     {
                         url: meme.url,
@@ -432,4 +430,3 @@ export const generateMemeAction: Action = {
         ],
     ] as ActionExample[][],
 } as Action;
-
