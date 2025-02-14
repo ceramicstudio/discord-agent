@@ -412,7 +412,7 @@ export class MessageManager {
                     return;
                 }
                 
-                const meme = await generateMemeActionHandler(this.runtime, userMessage, state, userName)
+                const meme = await generateMemeActionHandler(this.runtime, userMessage, state)
                
 
                 const callback: HandlerCallback = async (
