@@ -173,6 +173,8 @@ ${message}
 Generate **${captionsCount}** captions for the meme.
 
 # Instructions:
+- Do NOT tag the user who wrote the message - just make the captions general as if the user doesn't exist
+- Don't hold back!
 - Be as UNHINGED and RANDOM as possible
 - Mix different styles, tones, and references chaotically
 - Include unexpected pop culture references
