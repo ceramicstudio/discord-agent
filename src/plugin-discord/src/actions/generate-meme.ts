@@ -128,14 +128,14 @@ async function getImgflipTemplate(template: string): Promise<ImgflipTemplate> {
 
             if (matches.length > 0) {
                 // Return a random match with preference for unusual templates
-                const randomIndex = Math.floor(Math.pow(Math.random(), 2) * matches.length);
+                const randomIndex = Math.floor(Math.random() * matches.length);
                 const selectedMatch = matches[randomIndex];
                 elizaLogger.info(`Found ${matches.length} matching templates, chaotically selected: ${selectedMatch.name}`);
                 return selectedMatch;
             }
 
             // If no matches, return a random template with bias towards less used ones
-            const randomIndex = Math.floor(Math.pow(Math.random(), 2) * allMemes.data.memes.length);
+            const randomIndex = Math.floor(Math.random() * allMemes.data.memes.length);
             const randomTemplate = allMemes.data.memes[randomIndex];
             elizaLogger.info(`No matches found, chaotically selected template: ${randomTemplate.name}`);
             return randomTemplate;
@@ -149,7 +149,7 @@ async function getImgflipTemplate(template: string): Promise<ImgflipTemplate> {
             allResults.slice(0, Math.min(5, allResults.length));
         
         // Use non-linear randomness to favor unusual choices
-        const randomIndex = Math.floor(Math.pow(Math.random(), 2) * selectionPool.length);
+        const randomIndex = Math.floor(Math.random() * selectionPool.length);
         const selectedTemplate = selectionPool[randomIndex];
         
         elizaLogger.info(`Chaotically selected template "${selectedTemplate.name}" from ${selectionPool.length} results`);
