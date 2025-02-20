@@ -83,9 +83,9 @@ export class MessageManager {
         };
         
         // Set interval to run every hour
-        setInterval(() => {
-            this.sendScheduledMessage();
-        }, this.SCHEDULED_MESSAGE_CONSTANTS.HOUR_IN_MS);
+        // setInterval(() => {
+        //     this.sendScheduledMessage();
+        // }, this.SCHEDULED_MESSAGE_CONSTANTS.HOUR_IN_MS);
     }
 
     async handleMessage(message: DiscordMessage) {
