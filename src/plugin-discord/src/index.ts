@@ -24,6 +24,7 @@ import transcribe_media from "./actions/transcribe_media.ts";
 import { MessageManager } from "./messages.ts";
 import channelStateProvider from "./providers/channelState.ts";
 import {embeddingProvider} from "./providers/provider.ts";
+import {webSearchProvider} from "./providers/webSearchProvider.ts";
 import voiceStateProvider from "./providers/voiceState.ts";
 import { PermissionsBitField } from "discord.js";
 
@@ -80,7 +81,7 @@ export class DiscordClient extends EventEmitter {
     this.runtime.providers.push(channelStateProvider);
     this.runtime.providers.push(voiceStateProvider);
     this.runtime.providers.push(embeddingProvider);
-    
+    this.runtime.providers.push(webSearchProvider);
   }
 
   private setupEventListeners() {

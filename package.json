@@ -26,6 +26,7 @@
     "@elizaos/plugin-node": "0.1.7",
     "@elizaos/plugin-solana": "0.1.7",
     "@elizaos/plugin-starknet": "0.1.7",
+    "@elizaos/plugin-web-search": "0.25.6-alpha.1",
     "@tavily/core": "0.0.2",
     "@types/pg": "8.11.10",
     "amqplib": "0.10.5",
