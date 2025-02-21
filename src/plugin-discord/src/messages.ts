@@ -81,7 +81,7 @@ export class MessageManager {
             TOPIC_RELEVANCE_THRESHOLD: 0.6,
             MAX_RECENT_MESSAGES: 10
         };
-        
+
         // Set interval to run every hour
         // setInterval(() => {
         //     this.sendScheduledMessage();
@@ -426,8 +426,15 @@ export class MessageManager {
                     return;
                 }
 
-                const meme = await generateMemeActionHandler(this.runtime, userMessage, state)
-
+                const shouldIncludeMeme = await generateText({
+                    runtime: this.runtime,
+                    context: "Should I include a meme in my response? Analyze the user's message and determine if it's worthy of a meme response. Keep in mind that memes are often humorous or relatable content, and should be used sparingly, at most about 25% of the time. If in doubt, answer no. ONLY answer with 'YES' or 'NO'. User's message: " + userMessage.content.text,
+                    modelClass: ModelClass.SMALL
+                });
+                let meme = { url: "" };
+                if (shouldIncludeMeme === "YES" || shouldIncludeMeme === "yes") {
+                    meme = await generateMemeActionHandler(this.runtime, userMessage, state)
+                }
 
                 const callback: HandlerCallback = async (
                     content: Content,
@@ -448,7 +455,7 @@ export class MessageManager {
                             files
                         );
 
-                        if (meme.url) {
+                        if (meme.url && meme.url.length > 0) {
                             await sendMessageInChunks(
                                 message.channel as TextChannel,
                                 meme.url,
@@ -739,32 +746,32 @@ export class MessageManager {
                 recentTopics: []
             };
         }
-    
+
         const recentMessages = channelState.messages
             .slice(-this.SCHEDULED_MESSAGE_CONSTANTS.MAX_RECENT_MESSAGES);
-    
+
         const participants = new Set<string>();
         const topicsMap = new Map<string, number>();
         let messageGaps: number[] = [];
         let lastTimestamp = 0;
-    
+
         // AI and tech-related keywords to track
         const relevantTopics = [
             'ai', 'artificial intelligence', 'ml', 'machine learning',
             'decentralized', 'compute', 'neural networks', 'language models',
             'training', 'inference', 'scaling', 'governance', 'safety'
         ];
-    
+
         for (const msg of recentMessages) {
             participants.add(msg.userName);
-    
+
             const content = msg.content.text?.toLowerCase() || '';
             relevantTopics.forEach(topic => {
                 if (content.includes(topic)) {
                     topicsMap.set(topic, (topicsMap.get(topic) || 0) + 1);
                 }
             });
-    
+
             // Track message timing using the actual message timestamp if available
             const timestamp = typeof msg.content.createdAt === 'number' ? msg.content.createdAt : Date.now();
             if (lastTimestamp) {
@@ -772,25 +779,25 @@ export class MessageManager {
             }
             lastTimestamp = timestamp;
         }
-    
+
         // Calculate conversation characteristics
         const averageGap = messageGaps.length ?
             messageGaps.reduce((a, b) => a + b, 0) / messageGaps.length :
             this.SCHEDULED_MESSAGE_CONSTANTS.HOUR_IN_MS;
-    
+
         // Consider discussion active if average gap is less than 15 minutes
         const activeDiscussion = averageGap < (15 * 60 * 1000); // 15 minutes in milliseconds
-    
+
         // Sort topics by frequency
         const sortedTopics = Array.from(topicsMap.entries())
             .sort((a, b) => b[1] - a[1])
             .map(([topic]) => topic);
-    
+
         // Determine conversation mood based on message frequency and content
         const mood = activeDiscussion ?
             (messageGaps.length > 5 ? 'energetic' : 'engaged') :
             'casual';
-    
+
         return {
             topics: sortedTopics,
             mood,
@@ -845,90 +852,90 @@ Generate a response that feels like a natural part of the ongoing discussion.`;
 
     // Updated sendScheduledMessage implementation
     // Update sendScheduledMessage to ensure one message per hour
-private async sendScheduledMessage() {
-    try {
-        const channelId = this.discordClient.channelId;
+    private async sendScheduledMessage() {
+        try {
+            const channelId = this.discordClient.channelId;
 
-        if (!channelId) {
-            elizaLogger.warn("No channel ID specified for scheduled message.");
-            return;
-        }
+            if (!channelId) {
+                elizaLogger.warn("No channel ID specified for scheduled message.");
+                return;
+            }
 
-        // Fetch the channel
-        const channel = await this.client.channels.fetch(channelId);
-        if (!channel || !(channel instanceof TextChannel)) {
-            elizaLogger.warn(`Invalid channel or channel not found: ${channelId}`);
-            return;
-        }
+            // Fetch the channel
+            const channel = await this.client.channels.fetch(channelId);
+            if (!channel || !(channel instanceof TextChannel)) {
+                elizaLogger.warn(`Invalid channel or channel not found: ${channelId}`);
+                return;
+            }
 
-        // Initialize channel state if it doesn't exist
-        if (!this.interestChannels[channelId]) {
-            this.interestChannels[channelId] = {
-                currentHandler: undefined,
-                lastMessageSent: 0,
-                messages: []
-            };
-        }
+            // Initialize channel state if it doesn't exist
+            if (!this.interestChannels[channelId]) {
+                this.interestChannels[channelId] = {
+                    currentHandler: undefined,
+                    lastMessageSent: 0,
+                    messages: []
+                };
+            }
 
-        const channelState = this.interestChannels[channelId];
-        const timeSinceLastMessage = Date.now() - (channelState?.lastMessageSent || 0);
-        
-        // Only send if it's been at least an hour since the last message
-        if (timeSinceLastMessage >= this.SCHEDULED_MESSAGE_CONSTANTS.HOUR_IN_MS) {
-            // Analyze conversation context
-            const conversationContext = await this.analyzeConversationContext(channelState);
-            
-            // Generate context-aware template
-            const contextAwareTemplate = await this.generateContextAwareTemplate(conversationContext);
-            
-            // Generate message
-            const randomMessage = await generateText({
-                runtime: this.runtime,
-                context: contextAwareTemplate,
-                modelClass: ModelClass.LARGE
-            });
+            const channelState = this.interestChannels[channelId];
+            const timeSinceLastMessage = Date.now() - (channelState?.lastMessageSent || 0);
 
-            elizaLogger.info(`Generated scheduled message: ${randomMessage}`);
+            // Only send if it's been at least an hour since the last message
+            if (timeSinceLastMessage >= this.SCHEDULED_MESSAGE_CONSTANTS.HOUR_IN_MS) {
+                // Analyze conversation context
+                const conversationContext = await this.analyzeConversationContext(channelState);
 
-            // Send message
-            const messages = await sendMessageInChunks(
-                channel,
-                randomMessage,
-                undefined,
-                []
-            );
+                // Generate context-aware template
+                const contextAwareTemplate = await this.generateContextAwareTemplate(conversationContext);
 
-            // Update channel state
-            if (messages && messages.length > 0) {
-                channelState.lastMessageSent = Date.now();
-                channelState.currentHandler = this.client.user?.id;
-
-                // Update message history
-                messages.forEach(msg => {
-                    channelState.messages.push({
-                        userId: this.runtime.agentId,
-                        userName: this.client.user?.username || "Bot",
-                        content: {
-                            text: randomMessage,
-                            attachments: []
-                        }
-                    });
+                // Generate message
+                const randomMessage = await generateText({
+                    runtime: this.runtime,
+                    context: contextAwareTemplate,
+                    modelClass: ModelClass.LARGE
                 });
 
-                // Trim message history if needed
-                if (channelState.messages.length > MESSAGE_CONSTANTS.MAX_MESSAGES) {
-                    channelState.messages = channelState.messages.slice(-MESSAGE_CONSTANTS.MAX_MESSAGES);
-                }
+                elizaLogger.info(`Generated scheduled message: ${randomMessage}`);
 
-                elizaLogger.info(`Scheduled message sent successfully to ${channelId}`);
+                // Send message
+                const messages = await sendMessageInChunks(
+                    channel,
+                    randomMessage,
+                    undefined,
+                    []
+                );
+
+                // Update channel state
+                if (messages && messages.length > 0) {
+                    channelState.lastMessageSent = Date.now();
+                    channelState.currentHandler = this.client.user?.id;
+
+                    // Update message history
+                    messages.forEach(msg => {
+                        channelState.messages.push({
+                            userId: this.runtime.agentId,
+                            userName: this.client.user?.username || "Bot",
+                            content: {
+                                text: randomMessage,
+                                attachments: []
+                            }
+                        });
+                    });
+
+                    // Trim message history if needed
+                    if (channelState.messages.length > MESSAGE_CONSTANTS.MAX_MESSAGES) {
+                        channelState.messages = channelState.messages.slice(-MESSAGE_CONSTANTS.MAX_MESSAGES);
+                    }
+
+                    elizaLogger.info(`Scheduled message sent successfully to ${channelId}`);
+                }
+            } else {
+                elizaLogger.debug(`Not enough time has passed since last message (${timeSinceLastMessage}ms)`);
             }
-        } else {
-            elizaLogger.debug(`Not enough time has passed since last message (${timeSinceLastMessage}ms)`);
+        } catch (error) {
+            elizaLogger.error("Error sending scheduled message:", error);
         }
-    } catch (error) {
-        elizaLogger.error("Error sending scheduled message:", error);
     }
-}
 
 
 
