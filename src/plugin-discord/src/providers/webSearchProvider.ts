@@ -5,14 +5,16 @@ import {
     type Provider,
     Memory,
     State,
-    elizaLogger
+    elizaLogger,
+    generateText,
+    ModelClass
 } from "@elizaos/core";
 import { tavily } from "@tavily/core";
 import type { IWebSearchService, SearchOptions, SearchResponse } from "./webTypes.ts";
 
 export type TavilyClient = ReturnType<typeof tavily>; // declaring manually because original package does not export its types
 
-export class WebSearchService  {
+export class WebSearchService {
     public tavilyClient: TavilyClient
 
     async initialize(_runtime: IAgentRuntime): Promise<void> {
@@ -46,30 +48,43 @@ export class WebSearchService  {
 }
 
 export const webSearchProvider: Provider = {
-  get: async (
-    _runtime: IAgentRuntime,
-    message: Memory,
-    _state?: State
-  ): Promise<Error | string> => {
-    try {
-        const webSearchService = new WebSearchService();
-        await webSearchService.initialize(_runtime);
-        // if message.content.text contains "$", it's a search for a token
-        if (message.content.text.includes("$")) {
-            const latestNews = await webSearchService.search(
-                'search latest crypto news about ' + message.content.text,
-                // searchOptions
-            );
-            elizaLogger.info("Latest news: ", latestNews);
-            return latestNews.answer || ""
-        }
-       
-    
+    get: async (
+        _runtime: IAgentRuntime,
+        message: Memory,
+        _state?: State
+    ): Promise<Error | string> => {
+        try {
+            const webSearchService = new WebSearchService();
+            await webSearchService.initialize(_runtime);
+            const isExternalSearch = await generateText({
+                runtime:
+                    _runtime,
+                context: "Does this query require an external search? Please help determine whether grabbing current data from the web will help improve the quality of your answer. If the question is about current crypto prices or news, the answer is most likely yes. ONLY answer with 'YES' or 'NO'. Query: " + message.content.text,   
+                modelClass: ModelClass.SMALL
+            });
+            if (isExternalSearch === "YES" || isExternalSearch === "yes") {
+                const searchOptions: SearchOptions = {
+                    limit: 3,
+                    type: "general",
+                    includeAnswer: true,
+                    searchDepth: "basic",
+                    includeImages: false,
+                    days: 3,
+                };
+                const latestNews = await webSearchService.search(
+                    message.content.text,
+                    searchOptions
+                );
+                elizaLogger.info("Latest news: ", latestNews);
+                return latestNews.answer || ""
+            }
 
-    } catch (error) {
-      return error instanceof Error
-        ? error.message
-        : "Unable to get storage provider";
-    }
-  },
+
+
+        } catch (error) {
+            return error instanceof Error
+                ? error.message
+                : "Unable to get storage provider";
+        }
+    },
 };
