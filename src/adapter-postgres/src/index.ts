@@ -53,15 +53,23 @@ export class PostgresDatabaseAdapter
         });
 
         const defaultConfig = {
-            max: 20,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: this.connectionTimeout,
+            max: 40,
+            idleTimeoutMillis: 60000,
+            connectionTimeoutMillis: 10000,
         };
 
         this.pool = new pg.Pool({
             ...defaultConfig,
             ...connectionConfig, // Allow overriding defaults
         });
+
+	setInterval(() => {
+      elizaLogger.debug("PG Pool status", {
+        totalConnections: this.pool.totalCount,
+        idleConnections: this.pool.idleCount,
+        waitingRequests: this.pool.waitingCount,
+      });
+     }, 10000);
 
         this.pool.on("error", (err) => {
             elizaLogger.error("Unexpected pool error", err);

@@ -1,6 +1,4 @@
 import { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
-import pkg from "pg";
-const { Pool } = pkg;
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
 export const embeddingProvider: Provider = {
@@ -10,16 +8,13 @@ export const embeddingProvider: Provider = {
     _state?: State
   ): Promise<Error | string> => {
     try {
-      const pool = new Pool({
-        connectionString: process.env.POSTGRES_URL,
-       });
 
+    const db: any = _runtime.databaseAdapter;
     const cleanCode = message.content.text.trim().replace(/\s+/g, ' ');
-
     // Generate embedding
     const embedding = await new OpenAIEmbeddings().embedQuery(cleanCode);
 
-    const res = await pool.query(
+    const res = await db.pool.query(
         `SELECT content, embedding <=> $1::vector AS similarity 
          FROM code_embeddings 
          ORDER BY similarity ASC 
@@ -42,3 +37,4 @@ export const embeddingProvider: Provider = {
     }
   },
 };
+

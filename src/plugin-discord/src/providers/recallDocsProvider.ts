@@ -1,0 +1,352 @@
+import { elizaLogger, IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import * as cheerio from 'cheerio';
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+
+interface Document {
+  id: string;
+  title: string;
+  content: string;
+  url: string;
+}
+
+interface SearchResult {
+  document: Document;
+  relevanceScore: number;
+}
+
+export class WebDocScraper {
+  private baseUrl: string;
+  private documents: Document[] = [];
+  private scrapedUrls = new Set<string>();
+  private maxPages: number;
+  private isScraped: boolean = false;
+  private isScraping: boolean = false;
+  private lastScrapedTime: number = 0;
+  private cacheFilePath: string;
+  private cacheDir: string = path.join(process.cwd(), 'content_cache');
+  private cacheTTL: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  private initPromise: Promise<void> | null = null;
+
+  constructor(baseUrl: string, maxPages: number = 50) {
+    this.baseUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+    this.maxPages = maxPages;
+    const safeUrl = this.baseUrl.replace(/[^a-zA-Z0-9]/g, '_');
+    this.cacheFilePath = path.join(this.cacheDir, `${safeUrl}_cache.json`);
+    
+    // Create cache directory if it doesn't exist
+    if (!fs.existsSync(this.cacheDir)) {
+      try {
+        fs.mkdirSync(this.cacheDir, { recursive: true });
+      } catch (error) {
+        console.error('Failed to create cache directory:', error);
+      }
+    }
+    
+    // Initialize on construction
+    this.initPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      await this.loadFromCache();
+      
+      // If cache is stale or empty, trigger a background refresh
+      if (this.documents.length === 0 || 
+          Date.now() - this.lastScrapedTime > this.cacheTTL) {
+        this.backgroundScrape();
+      }
+    } catch (error) {
+      console.error('Error initializing WebDocScraper:', error);
+      // Even if loading from cache fails, we'll try scraping
+      this.backgroundScrape();
+    }
+  }
+
+  private async loadFromCache(): Promise<void> {
+    try {
+      if (fs.existsSync(this.cacheFilePath)) {
+        const cacheData = fs.readFileSync(this.cacheFilePath, 'utf8');
+        const cacheObj = JSON.parse(cacheData);
+        
+        this.documents = cacheObj.documents || [];
+        this.scrapedUrls = new Set(cacheObj.scrapedUrls || []);
+        this.lastScrapedTime = cacheObj.timestamp || 0;
+        this.isScraped = this.documents.length > 0;
+        
+        console.log(`Loaded ${this.documents.length} documents from cache.`);
+      }
+    } catch (error) {
+      console.error('Error loading from cache:', error);
+      // If loading fails, we'll need to scrape
+      this.documents = [];
+      this.scrapedUrls = new Set();
+      this.isScraped = false;
+    }
+  }
+
+  private async saveToCache(): Promise<void> {
+    try {
+      const cacheObj = {
+        documents: this.documents,
+        scrapedUrls: Array.from(this.scrapedUrls),
+        timestamp: Date.now()
+      };
+      
+      fs.writeFileSync(this.cacheFilePath, JSON.stringify(cacheObj), 'utf8');
+      console.log(`Saved ${this.documents.length} documents to cache.`);
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+    }
+  }
+
+  private backgroundScrape(): void {
+    if (this.isScraping) return;
+    
+    this.isScraping = true;
+    console.log('Starting background scraping process');
+    
+    // Start scraping in the background
+    this.scrapeWebsite()
+      .then(() => {
+        this.lastScrapedTime = Date.now();
+        this.saveToCache();
+      })
+      .catch(error => console.error('Background scraping error:', error))
+      .finally(() => {
+        this.isScraping = false;
+      });
+  }
+
+  async ensureScraped(): Promise<void> {
+    // Wait for initialization to complete
+    if (this.initPromise) {
+      await this.initPromise;
+      this.initPromise = null;
+    }
+    
+    // If we have no documents, we need to wait for scraping
+    if (this.documents.length === 0 && !this.isScraped) {
+      await this.scrapeWebsite();
+      this.lastScrapedTime = Date.now();
+      await this.saveToCache();
+    }
+  }
+
+  async scrapeWebsite(): Promise<void> {
+    if (this.isScraping) return;
+    
+    this.isScraping = true;
+    console.log(`Starting to scrape ${this.baseUrl}`);
+    
+    try {
+      await this.scrapeUrl(this.baseUrl);
+      this.isScraped = true;
+      console.log(`Completed scraping. Indexed ${this.documents.length} pages.`);
+    } catch (error) {
+      console.error('Error scraping website:', error);
+    } finally {
+      this.isScraping = false;
+    }
+  }
+
+  private async scrapeUrl(url: string, depth: number = 0): Promise<void> {
+    if (
+      this.scrapedUrls.has(url) || 
+      this.documents.length >= this.maxPages ||
+      depth > 3 || // Limit recursion depth
+      !url.startsWith(this.baseUrl) // Only scrape URLs within the base domain
+    ) {
+      return;
+    }
+
+    this.scrapedUrls.add(url);
+    console.log(`Scraping ${url}`);
+
+    try {
+      const response = await axios.get(url, {
+        timeout: 10000, // 10-second timeout
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; RecallDocsBot/1.0)'
+        }
+      });
+      
+      const $ = cheerio.load(response.data);
+      
+      // Extract content
+      // Remove navigation, headers, footers, etc.
+      $('nav, header, footer, script, style').remove();
+      
+      // Get the main content
+      const mainContent = $('main').length ? $('main').text() : $('body').text();
+      const cleanedContent = this.cleanText(mainContent);
+      
+      // Get the title
+      const title = $('title').text() || url.split('/').pop() || '';
+      
+      // Create a unique ID
+      const id = this.urlToId(url);
+      
+      // Add to documents
+      this.documents.push({
+        id,
+        title: this.cleanText(title),
+        content: cleanedContent,
+        url
+      });
+
+      // Find and follow links
+      const links = $('a[href]')
+        .map((_, link) => {
+          const href = $(link).attr('href') || '';
+          if (href.startsWith('/')) {
+            return new URL(href, this.baseUrl).href;
+          } else if (href.startsWith(this.baseUrl)) {
+            return href;
+          }
+          return null;
+        })
+        .get()
+        .filter(Boolean) as string[];
+
+      // Recursively scrape found links
+      for (const link of links) {
+        if (link && !this.scrapedUrls.has(link)) {
+          await this.scrapeUrl(link, depth + 1);
+        }
+      }
+    } catch (error) {
+      console.error(`Error scraping ${url}:`, error);
+    }
+  }
+
+  private cleanText(text: string): string {
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\n+/g, '\n')
+      .trim();
+  }
+
+  private urlToId(url: string): string {
+    return url
+      .replace(this.baseUrl, '')
+      .replace(/\/$/, '')
+      .replace(/[^a-zA-Z0-9]/g, '-')
+      .toLowerCase() || 'home';
+  }
+
+  search(query: string, limit: number = 5): SearchResult[] {
+    // If we have no documents but aren't scraping, trigger a background scrape
+    if (this.documents.length === 0 && !this.isScraping) {
+      this.backgroundScrape();
+      return [];
+    }
+    
+    const queryTerms = query.toLowerCase().split(/\s+/);
+    
+    let results = this.documents.map(doc => {
+      // Simple relevance scoring
+      const contentLower = doc.content.toLowerCase();
+      const titleLower = doc.title.toLowerCase();
+      
+      let score = 0;
+      
+      // Exact phrase match is highly relevant
+      if (contentLower.includes(query.toLowerCase())) {
+        score += 10;
+      }
+      
+      // Title matches are very relevant
+      if (titleLower.includes(query.toLowerCase())) {
+        score += 15;
+      }
+      
+      // Individual term matches
+      for (const term of queryTerms) {
+        if (term.length > 2) { // Ignore short terms
+          if (contentLower.includes(term)) {
+            score += 3;
+          }
+          if (titleLower.includes(term)) {
+            score += 5;
+          }
+          
+          // Boost score for exact word matches
+          const wordRegex = new RegExp(`\\b${term}\\b`, 'i');
+          if (wordRegex.test(contentLower)) {
+            score += 2;
+          }
+          if (wordRegex.test(titleLower)) {
+            score += 3;
+          }
+        }
+      }
+      
+      return { document: doc, relevanceScore: score };
+    });
+    
+    // Filter out zero-score results and sort by relevance
+    results = results
+      .filter(result => result.relevanceScore > 0)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+    
+    return results.slice(0, limit);
+  }
+
+  getDocument(id: string): Document | undefined {
+    return this.documents.find(doc => doc.id === id);
+  }
+
+  getAllDocuments(): Document[] {
+    return this.documents;
+  }
+}
+
+// Create a singleton instance of the scraper
+const recallDocsScraper = new WebDocScraper('https://docs.recall.network/', 50);
+
+export const recallDocsProvider: Provider = {
+  get: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state?: State
+  ): Promise<Error | string> => {
+    try {
+      // Extract the query from the message
+      const query = message.content.text.trim();
+      
+      // Ensure the documentation has been cached or is being scraped
+      await recallDocsScraper.ensureScraped();
+      
+      // Search for relevant documents
+      const results = recallDocsScraper.search(query, 3);
+      
+      if (results.length === 0) {
+        return "No relevant documentation found for your query. Documentation may still be loading.";
+      }
+      
+      // Format the results
+      let response = `# Relevant documentation from Recall Network\n\n`;
+      
+      for (const result of results) {
+        const doc = result.document;
+        response += `## ${doc.title}\n`;
+        response += `URL: ${doc.url}\n\n`;
+        
+        // Extract a snippet of content (first 300 chars)
+        const snippet = doc.content;
+        
+        response += `${snippet}\n\n`;
+      }
+      elizaLogger.info('docs provider response: ', JSON.stringify(response))
+      return response;
+    } catch (error) {
+      return error instanceof Error
+        ? error.message
+        : "Unable to fetch documentation from Recall Network";
+    }
+  },
+};
+
+export default recallDocsProvider; 

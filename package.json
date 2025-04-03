@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.8.0",
-    "@elizaos/adapter-postgres": "0.1.7",
+    "@elizaos/adapter-postgres": "0.25.6-alpha.1",
     "@elizaos/adapter-sqlite": "0.1.7",
     "@elizaos/client-auto": "0.1.7",
     "@elizaos/client-direct": "0.1.7",
@@ -24,6 +24,7 @@
     "@elizaos/plugin-image-generation": "0.1.7",
     "@elizaos/plugin-imgflip": "0.25.6-alpha.1",
     "@elizaos/plugin-node": "0.1.7",
+    "cheerio": "^1.0.0",
     "@elizaos/plugin-solana": "0.1.7",
     "@elizaos/plugin-starknet": "0.1.7",
     "@elizaos/plugin-web-search": "0.25.6-alpha.1",
