@@ -22,7 +22,7 @@ function needsExternalSearch(query: string): boolean {
     
     // Time indicators
     const timePatterns = [
-        /current|latest|recent|today|now|update|updates/,
+        /current|latest|recent|today|now|update|time|date|day|updates/,
         /this week|this month|this year/,
         /yesterday|tomorrow/
     ];
