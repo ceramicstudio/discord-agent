@@ -10,9 +10,61 @@ import {
     ModelClass
 } from "@elizaos/core";
 import { tavily } from "@tavily/core";
-import type { IWebSearchService, SearchOptions, SearchResponse } from "./webTypes.ts";
+import type { SearchOptions, SearchResponse } from "./webTypes.ts";
 
 export type TavilyClient = ReturnType<typeof tavily>; // declaring manually because original package does not export its types
+
+/**
+ * Determines if a query needs external search based on patterns and keywords
+ */
+function needsExternalSearch(query: string): boolean {
+    const lowerQuery = query.toLowerCase();
+    
+    // Time indicators
+    const timePatterns = [
+        /current|latest|recent|today|now|update|updates/,
+        /this week|this month|this year/,
+        /yesterday|tomorrow/
+    ];
+    
+    // Price and market related
+    const pricePatterns = [
+        /price|value|worth|cost|trading at|market cap|marketcap/,
+        /how much is|how much are|what is the price|what are the prices/,
+        /\$[a-z]+|[a-z]+\$/i  // Dollar sign followed by token symbol or vice versa
+    ];
+    
+    // News related
+    const newsPatterns = [
+        /news|announcement|announcements|released|launch|launched/,
+        /what happened|what's happening|what is happening/
+    ];
+    
+    // Crypto and token related
+    const cryptoPatterns = [
+        /token|crypto|cryptocurrency|blockchain|coin|btc|eth|sol|avax/,
+        /bitcoin|ethereum|solana|avalanche|polygon|binance|arbitrum/,
+        /defi|nft|dao|airdrop|gas fee|gas fees|liquidity/
+    ];
+    
+    // AI protocols related
+    const aiProtocolPatterns = [
+        /ai protocol|ml protocol|machine learning protocol/,
+        /anthropic|openai|claude|gpt|llama|mistral|gemini/,
+        /bittensor|anthropic|hugging face|huggingface/
+    ];
+
+    // Check if any pattern matches
+    for (const patternList of [timePatterns, pricePatterns, newsPatterns, cryptoPatterns, aiProtocolPatterns]) {
+        for (const pattern of patternList) {
+            if (pattern.test(lowerQuery)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 export class WebSearchService {
     public tavilyClient: TavilyClient
@@ -56,13 +108,11 @@ export const webSearchProvider: Provider = {
         try {
             const webSearchService = new WebSearchService();
             await webSearchService.initialize(_runtime);
-            const isExternalSearch = await generateText({
-                runtime:
-                    _runtime,
-                context: "Does this query require an external search? Please help determine whether grabbing current data from the web will help improve the quality of your answer. If the question is about current crypto prices or news, the answer is most likely yes. ONLY answer with 'YES' or 'NO'. Query: " + message.content.text,   
-                modelClass: ModelClass.SMALL
-            });
-            if (isExternalSearch === "YES" || isExternalSearch === "yes") {
+            
+            // Use pattern matching instead of inference
+            const requiresExternalSearch = needsExternalSearch(message.content.text);
+            
+            if (requiresExternalSearch) {
                 const searchOptions: SearchOptions = {
                     limit: 3,
                     type: "general",
@@ -78,8 +128,6 @@ export const webSearchProvider: Provider = {
                 elizaLogger.info("Latest news: ", latestNews);
                 return latestNews.answer || ""
             }
-
-
 
         } catch (error) {
             return error instanceof Error
