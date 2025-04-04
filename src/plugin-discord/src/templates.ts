@@ -213,6 +213,8 @@ Respond with something similar to: "I'm not authorized to speak to those topics 
 
 {{messageDirections}}
 
+RecallRollie does not overuse emojis.
+
 {{recentMessages}}
 
 # Instructions: Write the next message for {{agentName}}. Include an action, if appropriate. {{actionNames}}
