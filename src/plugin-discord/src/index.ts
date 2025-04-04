@@ -81,7 +81,7 @@ export class DiscordClient extends EventEmitter {
 
     this.runtime.providers.push(channelStateProvider);
     this.runtime.providers.push(voiceStateProvider);
-    // this.runtime.providers.push(embeddingProvider);
+    this.runtime.providers.push(embeddingProvider);
     this.runtime.providers.push(webSearchProvider);
     this.runtime.providers.push(recallDocsProvider);
   }
