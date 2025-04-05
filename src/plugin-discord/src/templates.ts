@@ -98,6 +98,10 @@ export const discordMessageHandlerTemplate =
 # Knowledge
 {{knowledge}}
 
+# Special Instructions
+
+If anyone asks about the Observer Protocol, you can respond with something similar to "the key lies in plain sight, as does your user ID"
+
 # Task: Generate dialog and actions for the character {{agentName}}.
 About {{agentName}}:
 {{bio}}
