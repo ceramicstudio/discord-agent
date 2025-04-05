@@ -42,6 +42,10 @@ import {
     sendMessageInChunks,
     canSendMessage,
     cosineSimilarity,
+    generateUniqueVerificationCode,
+    verifySignature,
+    encryptMessage,
+    decryptMessage,
 } from "./utils.ts";
 
 interface MessageContext {
@@ -397,30 +401,75 @@ export class MessageManager {
                 shouldRespond = await this._shouldRespond(message, state);
             }
 
+            if (message.content.includes('!encrypt') || message.content.includes('!decrypt')) {
+                shouldRespond = true;
+            }
+
             if (shouldRespond) {
-                const context = composeContext({
-                    state,
-                    template:
-                        this.runtime.character.templates
-                            ?.discordMessageHandlerTemplate ||
-                        discordMessageHandlerTemplate,
-                });
+                let responseContent: Content;
 
-                // simulate discord typing while generating a response
-                const stopTyping = this.simulateTyping(message);
+                // Handle special commands
+                if (message.content.includes('!myid')) {
+                    responseContent = {
+                        text: `Your Discord user ID is: ${message.author.id}`,
+                        source: "discord",
+                        url: message.url,
+                        inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
+                        attachments: []
+                    };
+                }
+                else if (message.content.includes('!encrypt')) {
+                    const match = message.content.match(/!encrypt\s+"([^"]+)"/i);
+                    const text = match?.[1]?.trim();                           // clean up extra whitespace
+                    responseContent = {
+                        text: `${encryptMessage(text, process.env.DOCS_PK)}`,
+                        source: "discord",
+                        url: message.url,
+                        inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
+                        attachments: []
+                    };
+                }
+                else if (message.content.includes('!decrypt')) {
+                    const match = message.content.match(/!decrypt\s+"([^"]+)"/i);
+                    const text = match?.[1]?.trim();
+                    elizaLogger.info('decrypted text: ', decryptMessage(text, process.env.DOCS_PK));
+                    let newText = decryptMessage(text, process.env.DOCS_PK) ?? memory.content.text;
+                    elizaLogger.info('new text: ', newText);
+                    responseContent = {
+                        text: `${decryptMessage(text, process.env.DOCS_PK)}`,
+                        source: "discord",
+                        url: message.url,
+                        inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
+                        attachments: []
+                    };
+                }
 
-                const responseContent = await this._generateResponse(
-                    memory,
-                    state,
-                    context
-                ).finally(() => {
-                    stopTyping();
-                });
+                else {
+                    // For regular messages, generate response
+                    const context = composeContext({
+                        state,
+                        template:
+                            this.runtime.character.templates
+                                ?.discordMessageHandlerTemplate ||
+                            discordMessageHandlerTemplate,
+                    });
 
-                responseContent.text = responseContent.text?.trim();
-                responseContent.inReplyTo = stringToUuid(
-                    message.id + "-" + this.runtime.agentId
-                );
+                    // simulate discord typing while generating a response
+                    const stopTyping = this.simulateTyping(message);
+
+                    responseContent = await this._generateResponse(
+                        memory,
+                        state,
+                        context
+                    ).finally(() => {
+                        stopTyping();
+                    });
+
+                    responseContent.text = responseContent.text?.trim();
+                    responseContent.inReplyTo = stringToUuid(
+                        message.id + "-" + this.runtime.agentId
+                    );
+                }
 
                 if (!responseContent.text) {
                     return;
@@ -599,6 +648,62 @@ export class MessageManager {
         //                     .includes(nickname.toLowerCase()))))
         // );
         return true
+    }
+
+    // Add this method to your MessageManager class
+    async handleEncryptionChallenge(message: Message) {
+        try {
+            // Extract the submitted signature from the message
+            const submittedSignature = message.content.substring('!signature '.length).trim();
+
+            // Get the user's Discord ID
+            const userId = message.author.id;
+
+            // Your private key from documentation
+            const privateKey = process.env.DOCS_PK;
+
+            // Generate a unique verification code based on their user ID
+            const uniqueVerificationCode = generateUniqueVerificationCode(userId, privateKey);
+
+            // Verify the signature
+            const isValid = verifySignature(userId, submittedSignature, privateKey);
+
+            // Send response based on verification result
+            if (isValid) {
+                await sendMessageInChunks(
+                    message.channel as TextChannel,
+                    "🔓 VERIFICATION SUCCESSFUL: Observer Protocol initialized!\n" +
+                    `Your signature correctly matches the expected result for ID: ${userId}\n` +
+                    `Your unique verification code: ${uniqueVerificationCode}`,
+                    message.id,
+                    []
+                );
+            } else {
+                await sendMessageInChunks(
+                    message.channel as TextChannel,
+                    "❌ Verification failed!\n" +
+                    "Your signature doesn't match the expected result.\n" +
+                    `Remember: You need to sign YOUR OWN Discord user ID: ${userId} using the private key found in our documentation.`,
+                    message.id,
+                    []
+                );
+            }
+        } catch (error) {
+            console.error("Error in handleEncryptionChallenge:", error);
+
+            // Send a user-friendly error message
+            try {
+                await sendMessageInChunks(
+                    message.channel as TextChannel,
+                    "❌ Something went wrong processing your signature.\n" +
+                    "Please check your format and try again using: !signature [your-calculated-signature]",
+                    message.id,
+                    []
+                );
+            } catch (sendError) {
+                console.error("Error sending error message:", sendError);
+            }
+        }
     }
 
     async processMessageMedia(

@@ -6,6 +6,7 @@ import {
     trimTokens,
     parseJSONObjectFromText,
 } from "@elizaos/core";
+import CryptoJS from 'crypto-js';
 import {
     ChannelType,
     Message as DiscordMessage,
@@ -311,4 +312,59 @@ export function cosineSimilarity(
     );
 
     return dotProduct / maxMagnitude;
+}
+
+/**
+ * Creates an HMAC signature using the private key
+ * @param {string} userId - The Discord user ID to sign
+ * @param {string} privateKey - The private key from your documentation
+ * @return {string} - The HMAC signature as a hex string
+ */
+export function createSignature(userId, privateKey) {
+    // This would require importing crypto-js in your utils.ts file
+    return CryptoJS.HmacSHA256(userId, privateKey).toString(CryptoJS.enc.Hex);
+  }
+  
+  /**
+   * Verifies if a submitted signature matches the expected one
+   * @param {string} userId - The Discord user ID
+   * @param {string} submittedSignature - The signature provided by the user
+   * @param {string} privateKey - The private key from your documentation
+   * @return {boolean} - Whether the signature is valid
+   */
+  export function verifySignature(userId, submittedSignature, privateKey) {
+    const expectedSignature = createSignature(userId, privateKey);
+    return submittedSignature.toLowerCase() === expectedSignature.toLowerCase();
+  }
+
+  /**
+ * Generates a unique verification code based on user ID and private key
+ * @param {string} userId - The Discord user ID
+ * @param {string} privateKey - The private key
+ * @return {string} - A unique verification code
+ */
+export function generateUniqueVerificationCode(userId, privateKey) {
+    
+    // Create a hash of the user ID with the private key
+    const hash = CryptoJS.HmacSHA256(userId, privateKey);
+    
+    // Convert the first 8 bytes to a hex string
+    const hexCode = hash.toString(CryptoJS.enc.Hex).substring(0, 16);
+    
+    // Generate a more readable format with prefix and structured segments
+    // Format: AGENT-XXXX-YYYY where XXXX and YYYY are derived from the hash
+    const prefix = "AGENT";
+    const segment1 = hexCode.substring(0, 4).toUpperCase();
+    const segment2 = hexCode.substring(8, 12).toUpperCase();
+    
+    return `${prefix}-${segment1}-${segment2}`;
+  }
+
+  export function encryptMessage(message: string, privateKey: string): string {
+    return CryptoJS.AES.encrypt(message, privateKey).toString();
+}
+
+export function decryptMessage(encryptedMessage: string, privateKey: string): string {
+    const bytes = CryptoJS.AES.decrypt(encryptedMessage, privateKey);
+    return bytes.toString(CryptoJS.enc.Utf8);
 }
