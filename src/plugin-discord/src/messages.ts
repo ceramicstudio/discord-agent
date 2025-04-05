@@ -401,7 +401,7 @@ export class MessageManager {
                 shouldRespond = await this._shouldRespond(message, state);
             }
 
-            if (message.content.includes('!encrypt') || message.content.includes('!decrypt')) {
+            if (message.content.includes('!encrypt') || message.content.includes('!decrypt') || message.content.includes('!myid') || message.content.includes('!signature')) {
                 shouldRespond = true;
             }
 
@@ -437,6 +437,19 @@ export class MessageManager {
                     elizaLogger.info('new text: ', newText);
                     responseContent = {
                         text: `${decryptMessage(text, process.env.DOCS_PK)}`,
+                        source: "discord",
+                        url: message.url,
+                        inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
+                        attachments: []
+                    };
+                }
+
+                else if (message.content.includes('!signature')) {
+                    const match = message.content.match(/!signature\s+"([^"]+)"/i);
+                    const text = match?.[1]?.trim();
+                    const responseText = this.handleEncryptionChallenge(message, text);
+                    responseContent = {
+                        text: responseText,
                         source: "discord",
                         url: message.url,
                         inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
@@ -651,10 +664,10 @@ export class MessageManager {
     }
 
     // Add this method to your MessageManager class
-    async handleEncryptionChallenge(message: Message) {
+    handleEncryptionChallenge(message: Message, sig: string) {
         try {
             // Extract the submitted signature from the message
-            const submittedSignature = message.content.substring('!signature '.length).trim();
+            const submittedSignature = sig;
 
             // Get the user's Discord ID
             const userId = message.author.id;
@@ -670,39 +683,20 @@ export class MessageManager {
 
             // Send response based on verification result
             if (isValid) {
-                await sendMessageInChunks(
-                    message.channel as TextChannel,
-                    "🔓 VERIFICATION SUCCESSFUL: Observer Protocol initialized!\n" +
+                return "🔓 VERIFICATION SUCCESSFUL: Observer Protocol initialized!\n" +
                     `Your signature correctly matches the expected result for ID: ${userId}\n` +
-                    `Your unique verification code: ${uniqueVerificationCode}`,
-                    message.id,
-                    []
-                );
+                    `Your unique verification code: ${uniqueVerificationCode}`;
             } else {
-                await sendMessageInChunks(
-                    message.channel as TextChannel,
-                    "❌ Verification failed!\n" +
+                return "❌ Verification failed!\n" +
                     "Your signature doesn't match the expected result.\n" +
-                    `Remember: You need to sign YOUR OWN Discord user ID: ${userId} using the private key found in our documentation.`,
-                    message.id,
-                    []
-                );
+                    `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight.`
+
             }
         } catch (error) {
             console.error("Error in handleEncryptionChallenge:", error);
-
-            // Send a user-friendly error message
-            try {
-                await sendMessageInChunks(
-                    message.channel as TextChannel,
-                    "❌ Something went wrong processing your signature.\n" +
-                    "Please check your format and try again using: !signature [your-calculated-signature]",
-                    message.id,
-                    []
-                );
-            } catch (sendError) {
-                console.error("Error sending error message:", sendError);
-            }
+            return "❌ Verification failed!\n" +
+                    "Your signature doesn't match the expected result.\n" +
+                    `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight.`
         }
     }
 

@@ -334,6 +334,8 @@ export function createSignature(userId, privateKey) {
    */
   export function verifySignature(userId, submittedSignature, privateKey) {
     const expectedSignature = createSignature(userId, privateKey);
+    elizaLogger.info('userId: ', userId);
+    elizaLogger.info('expectedSig: ', expectedSignature);
     return submittedSignature.toLowerCase() === expectedSignature.toLowerCase();
   }
 
