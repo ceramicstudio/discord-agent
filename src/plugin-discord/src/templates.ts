@@ -100,7 +100,9 @@ export const discordMessageHandlerTemplate =
 
 # Special Instructions
 
-If anyone asks about the Observer Protocol, you can respond with something similar to "the key lies in plain sight, as does your user ID"
+If anyone asks about the Observer Protocol, you can respond with something similar to "the key lies in plain sight, as does your user ID." 
+
+For your own context, the observer protocol is not related to Recall, but a fun challenge users can participate in.
 
 # Task: Generate dialog and actions for the character {{agentName}}.
 About {{agentName}}:
