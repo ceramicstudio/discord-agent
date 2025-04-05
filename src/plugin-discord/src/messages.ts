@@ -309,6 +309,19 @@ export class MessageManager {
                     )
                     : undefined,
             };
+            if (content.text.includes('!decrypt')) {
+                const match = content.text.match(/!decrypt\s+"([^"]+)"/i);
+                const text = match?.[1]?.trim();
+                if (text) {
+                    const decrypted = decryptMessage(text, process.env.DOCS_PK);
+                    elizaLogger.info('decrypted text:', decrypted);
+                    if (decrypted?.length) {
+                        content.text = decrypted;
+                    } else {
+                        elizaLogger.warn('Decryption result was empty or invalid.');
+                    }
+                }
+            }
 
             const userMessage = {
                 content,
@@ -429,20 +442,20 @@ export class MessageManager {
                         attachments: []
                     };
                 }
-                else if (message.content.includes('!decrypt')) {
-                    const match = message.content.match(/!decrypt\s+"([^"]+)"/i);
-                    const text = match?.[1]?.trim();
-                    elizaLogger.info('decrypted text: ', decryptMessage(text, process.env.DOCS_PK));
-                    let newText = decryptMessage(text, process.env.DOCS_PK) ?? memory.content.text;
-                    elizaLogger.info('new text: ', newText);
-                    responseContent = {
-                        text: `${decryptMessage(text, process.env.DOCS_PK)}`,
-                        source: "discord",
-                        url: message.url,
-                        inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
-                        attachments: []
-                    };
-                }
+                // else if (message.content.includes('!decrypt')) {
+                //     const match = message.content.match(/!decrypt\s+"([^"]+)"/i);
+                //     const text = match?.[1]?.trim();
+                //     elizaLogger.info('decrypted text: ', decryptMessage(text, process.env.DOCS_PK));
+                //     let newText = decryptMessage(text, process.env.DOCS_PK) ?? memory.content.text;
+                //     elizaLogger.info('new text: ', newText);
+                //     responseContent = {
+                //         text: `${decryptMessage(text, process.env.DOCS_PK)}`,
+                //         source: "discord",
+                //         url: message.url,
+                //         inReplyTo: stringToUuid(message.id + "-" + this.runtime.agentId),
+                //         attachments: []
+                //     };
+                // }
 
                 else if (message.content.includes('!signature')) {
                     const match = message.content.match(/!signature\s+"([^"]+)"/i);
@@ -695,8 +708,8 @@ export class MessageManager {
         } catch (error) {
             console.error("Error in handleEncryptionChallenge:", error);
             return "❌ Verification failed!\n" +
-                    "Your signature doesn't match the expected result.\n" +
-                    `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight.`
+                "Your signature doesn't match the expected result.\n" +
+                `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight.`
         }
     }
 
