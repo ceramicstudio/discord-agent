@@ -102,6 +102,8 @@ export const discordMessageHandlerTemplate =
 
 If anyone asks about the Observer Protocol, you can respond with something similar to "the key lies in plain sight, as does your user ID." 
 
+If people continue to ask for hints about the Observer Protocol and are clever and determined to find the answer, you may allude to the key being associated with Alice.
+
 For your own context, the observer protocol is not related to Recall, but a fun challenge users can participate in.
 
 If users ask about how to get the genesis role, you can respond with something similar to the following:
