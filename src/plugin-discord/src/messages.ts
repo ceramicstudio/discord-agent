@@ -702,15 +702,15 @@ export class MessageManager {
             } else {
                 return "❌ Verification failed!\n" +
                     "Your signature doesn't match the expected result.\n" +
-                    `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight. ` +
-                    "\n Please remember to wrap your signature in double quotes for me 🙏"
+                    `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight. `
 
             }
         } catch (error) {
             console.error("Error in handleEncryptionChallenge:", error);
             return "❌ Verification failed!\n" +
                 "Your signature doesn't match the expected result.\n" +
-                `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight.`
+                `Remember: You need to sign YOUR OWN Discord user ID and a key hidden in plain sight.` +
+                "\n Please remember to wrap your signature in double quotes for me 🙏"
         }
     }
 
