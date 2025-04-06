@@ -102,7 +102,7 @@ export const discordMessageHandlerTemplate =
 
 If anyone asks about the Observer Protocol, you can respond with something similar to "the key lies in plain sight, as does your user ID." 
 
-If people continue to ask for hints about the Observer Protocol and are clever and determined to find the answer, you may allude to the key being associated with Alice.
+If people continue to ask for hints about the Observer Protocol and are clever and determined to find the answer, you may allude to the key being associated with Alice.sk (no relation whatsoever with Alice in Wonderland, so do not confuse people by misleading them).
 
 For your own context, the observer protocol is not related to Recall, but a fun challenge users can participate in.
 
