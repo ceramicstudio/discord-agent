@@ -16,9 +16,27 @@ interface SearchResult {
   relevanceScore: number;
 }
 
+interface VideoData {
+  videos: Array<{
+    title: string;
+    videoId: string;
+    summary: string;
+    topics: string[];
+    timestamps: Array<{
+      time: string;
+      description: string;
+    }>;
+    category: string;
+    difficulty: string;
+  }>;
+  categories: string[];
+  popularUseCases: string[];
+}
+
 export class WebDocScraper {
   private baseUrl: string;
   private documents: Document[] = [];
+  private videosDocuments: Document[] = [];
   private scrapedUrls = new Set<string>();
   private maxPages: number;
   private isScraped: boolean = false;
@@ -26,6 +44,7 @@ export class WebDocScraper {
   private lastScrapedTime: number = 0;
   private cacheFilePath: string;
   private cacheDir: string = path.join(process.cwd(), 'content_cache');
+  private videosJsonPath: string = path.join(process.cwd(), 'content_cache', 'videos.json');
   private cacheTTL: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
   private initPromise: Promise<void> | null = null;
 
@@ -50,6 +69,10 @@ export class WebDocScraper {
 
   private async initialize(): Promise<void> {
     try {
+      // First load the videos.json if it exists
+      await this.loadVideosJson();
+      
+      // Then load the web content cache
       await this.loadFromCache();
       
       // If cache is stale or empty, trigger a background refresh
@@ -61,6 +84,45 @@ export class WebDocScraper {
       console.error('Error initializing WebDocScraper:', error);
       // Even if loading from cache fails, we'll try scraping
       this.backgroundScrape();
+    }
+  }
+
+  private async loadVideosJson(): Promise<void> {
+    try {
+      if (fs.existsSync(this.videosJsonPath)) {
+        const videosData = fs.readFileSync(this.videosJsonPath, 'utf8');
+        const videoJson: VideoData = JSON.parse(videosData);
+        
+        // Transform videos into documents
+        this.videosDocuments = videoJson.videos.map(video => {
+          // Create a content string that includes all searchable information
+          const timestampsText = video.timestamps
+            .map(ts => `${ts.time}: ${ts.description}`)
+            .join('\n');
+          
+          const content = `
+            ${video.title}
+            ${video.summary}
+            Topics: ${video.topics.join(', ')}
+            Category: ${video.category}
+            Difficulty: ${video.difficulty}
+            Timestamps:
+            ${timestampsText}
+          `;
+          
+          return {
+            id: `video-${video.videoId}`,
+            title: video.title,
+            content: content,
+            url: `https://www.youtube.com/watch?v=${video.videoId}`
+          };
+        });
+        
+        console.log(`Loaded ${this.videosDocuments.length} video documents from videos.json`);
+      }
+    } catch (error) {
+      console.error('Error loading videos.json:', error);
+      this.videosDocuments = [];
     }
   }
 
@@ -240,12 +302,14 @@ export class WebDocScraper {
     // If we have no documents but aren't scraping, trigger a background scrape
     if (this.documents.length === 0 && !this.isScraping) {
       this.backgroundScrape();
-      return [];
     }
     
     const queryTerms = query.toLowerCase().split(/\s+/);
     
-    let results = this.documents.map(doc => {
+    // Combined documents from both sources
+    const allDocuments = [...this.documents, ...this.videosDocuments];
+    
+    let results = allDocuments.map(doc => {
       // Simple relevance scoring
       const contentLower = doc.content.toLowerCase();
       const titleLower = doc.title.toLowerCase();
@@ -283,6 +347,16 @@ export class WebDocScraper {
         }
       }
       
+      // Boost videos a bit in the results when talking about tutorials or guides
+      if (doc.id.startsWith('video-') && 
+          (query.toLowerCase().includes('tutorial') || 
+           query.toLowerCase().includes('guide') || 
+           query.toLowerCase().includes('video') ||
+           query.toLowerCase().includes('example') ||
+           query.toLowerCase().includes('how to'))) {
+        score += 5;
+      }
+      
       return { document: doc, relevanceScore: score };
     });
     
@@ -295,11 +369,13 @@ export class WebDocScraper {
   }
 
   getDocument(id: string): Document | undefined {
-    return this.documents.find(doc => doc.id === id);
+    // Check both document sources
+    return this.documents.find(doc => doc.id === id) || 
+           this.videosDocuments.find(doc => doc.id === id);
   }
 
   getAllDocuments(): Document[] {
-    return this.documents;
+    return [...this.documents, ...this.videosDocuments];
   }
 }
 
@@ -331,13 +407,26 @@ export const recallDocsProvider: Provider = {
       
       for (const result of results) {
         const doc = result.document;
-        response += `## ${doc.title}\n`;
-        response += `URL: ${doc.url}\n\n`;
         
-        // Extract a snippet of content (first 300 chars)
-        const snippet = doc.content;
-        
-        response += `${snippet}\n\n`;
+        // Special formatting for video results
+        if (doc.id.startsWith('video-')) {
+          response += `## 📺 ${doc.title}\n`;
+          response += `URL: ${doc.url}\n\n`;
+          
+          // Extract summary which is the second line in the content
+          const contentLines = doc.content.trim().split('\n');
+          const summary = contentLines[1]?.trim() || '';
+          
+          response += `${summary}\n\n`;
+        } else {
+          response += `## ${doc.title}\n`;
+          response += `URL: ${doc.url}\n\n`;
+          
+          // Extract a snippet of content
+          const snippet = doc.content;
+          
+          response += `${snippet}\n\n`;
+        }
       }
       elizaLogger.info('docs provider response: ', JSON.stringify(response))
       return response;

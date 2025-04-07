@@ -1,0 +1,331 @@
+{
+  "videos": [
+    {
+      "title": "Vibe Coding Crypto Alpha Detection Agents #2",
+      "videoId": "gTBB226V2so",
+      "summary": "Demonstration of building a crypto Alpha detection agent using MRA framework with Recall network integration. Shows the full process from setting up a TypeScript project to storing agent analysis on-chain.",
+      "topics": [
+        "Building AI agents with MRA/Mastra framework",
+        "Recall integration for data storage",
+        "Claude API access to crypto data sources",
+        "Cursor rules for guiding AI coding",
+        "Alpha detection for crypto assets",
+        "Chain of Thought logging"
+      ],
+      "timestamps": [
+        {
+          "time": "0:17",
+          "description": "Introduction to the project and Recall docs with framework guides"
+        },
+        {
+          "time": "2:00",
+          "description": "Overview of the MRA guide and prompting approach with Cursor agent"
+        },
+        {
+          "time": "3:10",
+          "description": "Setting up cursor rules for the project"
+        },
+        {
+          "time": "5:20",
+          "description": "Explanation of the Alpha detection competition for crypto trading signals"
+        },
+        {
+          "time": "7:45",
+          "description": "First prompt: Project initialization and quality tool setup"
+        },
+        {
+          "time": "11:40",
+          "description": "Second prompt: Setting up the agent with Recall integration"
+        },
+        {
+          "time": "15:20",
+          "description": "Third prompt: Adding crypto trading capabilities with data feeds"
+        },
+        {
+          "time": "18:40",
+          "description": "Troubleshooting agent execution and maximizing steps"
+        },
+        {
+          "time": "22:15",
+          "description": "Agent successfully analyzes token mentions and prices"
+        },
+        {
+          "time": "24:00",
+          "description": "Verification of data storage in Recall network bucket"
+        }
+      ],
+      "category": "Agent Building Series",
+      "difficulty": "Intermediate"
+    },
+    {
+      "title": "Using the Faucet and Basic Recall Features",
+      "videoId": "Xzz6rYI3We0",
+      "summary": "Basic introduction to Recall, showing how to get started with the testnet, use the faucet, connect to the portal, buy credits, and interact with Recall using Claude's MCP server integration.",
+      "topics": [
+        "Getting testnet tokens from the Recall faucet",
+        "Using the Recall developer portal",
+        "Converting tokens to data credits",
+        "Setting up MCP server for AI assistants",
+        "Creating buckets and storing data programmatically",
+        "Agent integration with Recall"
+      ],
+      "timestamps": [
+        {
+          "time": "0:10",
+          "description": "Introduction to getting started with Recall basics"
+        },
+        {
+          "time": "0:30",
+          "description": "Using the faucet to get testnet tokens"
+        },
+        {
+          "time": "0:55",
+          "description": "Exploring the developer portal interface"
+        },
+        {
+          "time": "1:25",
+          "description": "Converting tokens to data credits on the network"
+        },
+        {
+          "time": "1:50",
+          "description": "Introduction to using Claude and MCP server for Recall interactions"
+        },
+        {
+          "time": "2:20",
+          "description": "Setting up the MCP server configuration for Claude"
+        },
+        {
+          "time": "3:50",
+          "description": "Demonstration of creating a bucket using Claude"
+        },
+        {
+          "time": "4:30",
+          "description": "Storing JSON data in a Recall bucket through Claude"
+        },
+        {
+          "time": "5:20",
+          "description": "Mention of upcoming features and tools for agent development"
+        }
+      ],
+      "category": "Getting Started with Recall",
+      "difficulty": "Beginner"
+    },
+    {
+      "title": "Building Agents in Genius Mode using Sequential Thinking",
+      "videoId": "HsSIRrnkV-s",
+      "summary": "Demonstration of implementing sequential thinking in agent development with Recall. Shows how to set up an agent that analyzes Substack for crypto sentiment, makes predictions, and stores both predictions and reasoning process on the Recall network.",
+      "topics": [
+        "Sequential thinking for step-by-step agent reasoning",
+        "Chain of Thought logging on Recall",
+        "Trading prediction storage",
+        "MCP server integration with agents",
+        "Debugging agent workflows",
+        "Storing agent reasoning processes for analysis"
+      ],
+      "timestamps": [
+        {
+          "time": "0:15",
+          "description": "Introduction to sequential thinking MCP server for agents"
+        },
+        {
+          "time": "1:10",
+          "description": "Overview of a simple agent that analyzes Substack for crypto sentiment"
+        },
+        {
+          "time": "2:45",
+          "description": "Adding trade prediction storage functionality to the agent"
+        },
+        {
+          "time": "6:15",
+          "description": "Troubleshooting agent execution and identifying missing components"
+        },
+        {
+          "time": "8:30",
+          "description": "Adding the Recall server integration"
+        },
+        {
+          "time": "12:25",
+          "description": "Testing sequential thinking by removing the Recall server"
+        },
+        {
+          "time": "13:15",
+          "description": "Successful execution of sequential thinking with Claude"
+        },
+        {
+          "time": "16:30",
+          "description": "Viewing the sequential thinking logs in the Recall bucket"
+        },
+        {
+          "time": "18:45",
+          "description": "Discussion of potential improvements to the sequential thinking framework"
+        }
+      ],
+      "category": "Advanced Agent Techniques",
+      "difficulty": "Advanced"
+    },
+    {
+      "title": "Exploring a New Recall MCP Server for Onchain S3 Buckets",
+      "videoId": "eAXPbBATCtQ",
+      "summary": "Introduction to the Recall MCP server and demonstration of how it enables agents to interact with onchain storage through the Model Context Protocol (MCP).",
+      "topics": [
+        "Model Context Protocol (MCP) for AI tools",
+        "Recall MCP server for onchain storage",
+        "Data feeds integration (Twitter, Substack, CoinGecko)",
+        "Setting up Claude with external tools",
+        "Storing agent analysis and predictions onchain",
+        "Chain of Thought logging for agent transparency"
+      ],
+      "timestamps": [
+        {
+          "time": "0:15",
+          "description": "Introduction to MCP (Model Context Protocol) concepts"
+        },
+        {
+          "time": "1:10",
+          "description": "Overview of data feeds MCP server with Twitter, Substack, and CoinGecko integration"
+        },
+        {
+          "time": "2:15",
+          "description": "Introduction to the Recall Alpha detection competition"
+        },
+        {
+          "time": "3:00",
+          "description": "Explanation of Recall MCP server capabilities for onchain storage"
+        },
+        {
+          "time": "4:00",
+          "description": "Example of MCP integration in Mastra agent framework"
+        },
+        {
+          "time": "5:30",
+          "description": "Setting up Claude with MCP servers through config file modification"
+        },
+        {
+          "time": "7:05",
+          "description": "Installing and configuring the Recall MCP server"
+        },
+        {
+          "time": "8:50",
+          "description": "Demonstration of Claude using MCP tools to store data in Recall buckets"
+        },
+        {
+          "time": "11:20",
+          "description": "Example of using Recall in an agent for storing token mentions and Chain of Thought logs"
+        },
+        {
+          "time": "12:50",
+          "description": "Discussion of upcoming MCP improvements for agent-to-agent communication"
+        }
+      ],
+      "category": "Tool & Integration Guides",
+      "difficulty": "Intermediate"
+    },
+    {
+      "title": "Crypto AI Trading Bot: CoinGecko & Substack Integration",
+      "videoId": "UXJkEah5t3g",
+      "summary": "Short demonstration of integrating CoinGecko and Substack data sources into an AI trading bot using Claude with MCP support.",
+      "topics": [
+        "MCP server integration for crypto data sources",
+        "CoinGecko API access for price data",
+        "Unofficial Substack API implementation",
+        "Expanding AI assistant capabilities through MCP tools",
+        "Alpha detection in crypto markets"
+      ],
+      "timestamps": [
+        {
+          "time": "0:05",
+          "description": "Brief explanation of using Claude for MCP integration"
+        },
+        {
+          "time": "0:30",
+          "description": "Discussion of adding CoinGecko price data analysis"
+        },
+        {
+          "time": "1:20",
+          "description": "Setting up libraries for CoinGecko API access"
+        },
+        {
+          "time": "2:00",
+          "description": "Adding Substack API integration"
+        },
+        {
+          "time": "2:40",
+          "description": "Testing the expanded MCP servers with increased skill capabilities"
+        },
+        {
+          "time": "3:10",
+          "description": "Brief test of Twitter integration"
+        }
+      ],
+      "category": "Tool & Integration Guides",
+      "difficulty": "Intermediate"
+    },
+    {
+      "title": "Vibe Coding Crypto Alpha Detection Agents #1",
+      "videoId": "TwSYePsdfOk",
+      "summary": "Exploration of creating a crypto alpha detection agent by combining various data sources through MCP servers, including Twitter scraping, CoinGecko API access, and Substack data retrieval.",
+      "topics": [
+        "Custom MCP servers for crypto data sources",
+        "Twitter scraping without API keys",
+        "CoinGecko and Substack integration",
+        "Multi-tool alpha detection approach",
+        "Rapid prototyping of AI agent capabilities",
+        "MCP for framework-agnostic tool usage"
+      ],
+      "timestamps": [
+        {
+          "time": "0:15",
+          "description": "Discussion of useful plugins for alpha detection in crypto"
+        },
+        {
+          "time": "1:10",
+          "description": "Explanation of MCP for giving models external tool capabilities"
+        },
+        {
+          "time": "2:00",
+          "description": "Description of creating a custom Twitter MCP server based on Eliza plugin"
+        },
+        {
+          "time": "2:50",
+          "description": "Demonstration of Claude using Twitter skills to analyze a crypto projects list"
+        },
+        {
+          "time": "4:15",
+          "description": "Identifying tokens being discussed on Twitter as a basic form of alpha detection"
+        },
+        {
+          "time": "5:00",
+          "description": "Adding CoinGecko integration for price and market data"
+        },
+        {
+          "time": "6:20",
+          "description": "Building Substack integration for newsletter analysis"
+        },
+        {
+          "time": "7:45",
+          "description": "Testing the combined tools with Claude to identify crypto mentions"
+        },
+        {
+          "time": "9:40",
+          "description": "Discussion of next steps and potential framework integration"
+        }
+      ],
+      "category": "Agent Building Series",
+      "difficulty": "Intermediate"
+    }
+  ],
+  "categories": [
+    "Getting Started with Recall",
+    "Agent Building Series",
+    "Advanced Agent Techniques",
+    "Tool & Integration Guides",
+    "Competition Resources"
+  ],
+  "popularUseCases": [
+    "Building agents that analyze social media for crypto mentions",
+    "Creating persistent memory for your agents through Recall storage",
+    "Implementing transparent reasoning with Chain of Thought logging",
+    "Combining multiple data sources for investment insights",
+    "Participating in the AlphaWave competition for crypto trading agents"
+  ]
+}
