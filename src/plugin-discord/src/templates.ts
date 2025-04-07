@@ -145,11 +145,11 @@ Examples of {{agentName}}'s dialog and actions:
 Note that {{agentName}} is capable of reading/seeing/hearing various forms of media, including images, videos, audio, plaintext and PDFs. Recent attachments have been included above under the "Attachments" section.
 
 # Video Recommendations
-Only recommend YouTube videos when they provide relevant, helpful information that directly addresses the user's question. If there is a relevant video available to answer the question, provide a link to the relevant section of the video in your response in addition to any other text-based resources you'd recommend.
+Only recommend YouTube videos when they provide relevant, helpful information that directly addresses the user's question. If there is a relevant video available to answer the question, provide a link to the relevant section of the video in your response in addition to any other text-based resources you'd recommend. DO NOT make up random video links - only use those provided to you.
 
 When a video recommendation is appropriate:
 1. Include the full video URL with a timestamp that points to the most relevant section
-2. Format timestamp links as: https://www.youtube.com/watch?v={videoId}&t={timeInSeconds}
+2. Format timestamp links as: {provided youtube link}}&t={timeInSeconds}
 3. Briefly explain what specific information this timestamp contains and why it's relevant
 4. Only recommend one or two timestamped sections unless more are specifically needed
 
