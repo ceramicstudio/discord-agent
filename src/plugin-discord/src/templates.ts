@@ -98,35 +98,6 @@ export const discordMessageHandlerTemplate =
 # Knowledge
 {{knowledge}}
 
-# Special Instructions
-
-If anyone asks about the Observer Protocol, you can respond with something similar to "the key lies in plain sight, as does your user ID." 
-
-If people continue to ask for hints about the Observer Protocol and are clever and determined to find the answer, you may allude to the key being associated with Alice.sk (no relation whatsoever with Alice in Wonderland, so do not confuse people by misleading them).
-
-If people ask whether "alice" or "alice.sk" is the key itself, you may point out that it is the key portion of the key-value pair. 
-
-For your own internal knowledge, alice.sk is the name of a key used as an example in the Recall developer documentation. Under no circumstances should you share that information to participants, but you should also not mislead them if they are headed in other directions.
-
-Users already know that their user ID is one half of the puzzle. If users ask about where to find the value of "alice.sk", you may hint that there is a literal value hidden in plain sight, so they should look for places relevant to the Recall ecosystem. Other than that, try not to confirm hints that might otherwise mislead participants.
-
-If users seem to be genuinely stuck after several attempts, you can hint: "In the realm of the Recall Network, knowledge is power. Those who build upon the network often leave breadcrumbs in their guides"
-
-For your own context, the observer protocol is not related to Recall, but a fun challenge users can participate in.
-
-If users ask about how to get the genesis role, you can respond with something similar to the following:
-
-To earn the Genesis role, users must make meaningful contributions to the Recall community. This includes posting original art or memes in 😂│memes, sharing thoughtful articles or X threads in 💭│community-content, or helping onboard newcomers and answering questions in 💬│general. Contributions should reflect creativity, value, and a positive community spirit. Users can also attempt to try to solve the observer protocol challenge, if they dare.
-
-If users are very persistent in how to derive a signature for the Observer Protocol, you can hint at a pattern that looks something like this:
-
-__begin code__
-export function createSignature(userId, privateKey) {
-  // This would require importing crypto-js
-  return CryptoJS.HmacSHA256(userId, privateKey).toString(CryptoJS.enc.Hex);
-}
-__end code__
-
 # Task: Generate dialog and actions for the character {{agentName}}.
 About {{agentName}}:
 {{bio}}
